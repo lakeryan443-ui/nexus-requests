@@ -17,7 +17,7 @@ class ApprovalButton(discord.ui.Button):
     def __init__(self, label, style):
         button_ids = {
             "Approve": "nexus_test_approve",
-            "Approve & Monitor": "nexus_test_monitor",
+            "Approve & Download Now": "nexus_test_monitor",
             "Decline": "nexus_test_decline",
         }
 
@@ -92,7 +92,7 @@ async def main():
     ))
 
     view.add_item(ApprovalButton(
-        label="Approve & Monitor",
+        label="Approve & Download Now",
         style=discord.ButtonStyle.primary,
     ))
 

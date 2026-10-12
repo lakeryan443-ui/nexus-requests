@@ -11,10 +11,12 @@ __pycache__/
 
 # Runtime data
 data/
+istate/
 
 # Logs and temporary files
 *.log
 *.tmp
+*.bak
 
 # Editor files
 .vscode/
