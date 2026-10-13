@@ -8,7 +8,7 @@ load_dotenv("/opt/nexus-requests/.env")
 
 from priority_store import load_jobs, update_job, transition_job
 from priority import find_radarr_download, find_sonarr_download
-from qbt_verify import verify_torrent
+from qbt_verify import TorrentNotFoundError, verify_torrent
 
 logger = logging.getLogger("nexus.priority")
 
@@ -46,10 +46,39 @@ async def check_processing_movie(request_id, job):
         return
 
     torrent_hash = job.get("execution_hash")
-    torrent = await verify_torrent(
-        torrent_hash,
-        expected_category="radarr",
-    )
+
+    try:
+        torrent = await verify_torrent(
+            torrent_hash,
+            expected_category="radarr",
+        )
+    except TorrentNotFoundError:
+        try:
+            transition_job(
+                request_id,
+                "failed",
+                execution_error="torrent_missing",
+                execution_message=(
+                    "The execution hash is no longer present in qBittorrent."
+                ),
+                manual_review_required=True,
+                last_state="missing",
+                last_checked_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except ValueError:
+            logger.info(
+                "Request #%s: job status changed before the missing "
+                "torrent result could be recorded",
+                request_id,
+            )
+            return
+
+        logger.warning(
+            "Request #%s: execution torrent is missing from qBittorrent; "
+            "marked failed for manual review",
+            request_id,
+        )
+        return
 
     if torrent.get("hash") != torrent_hash:
         raise ValueError("Processing torrent identity mismatch")
@@ -77,10 +106,7 @@ async def check_processing_movie(request_id, job):
         )
         return
 
-    if (
-        type(progress) not in (int, float)
-        or not 0 <= progress <= 1
-    ):
+    if type(progress) not in (int, float) or not 0 <= progress <= 1:
         raise ValueError("Invalid torrent progress")
 
     update_job(

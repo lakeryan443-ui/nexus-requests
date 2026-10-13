@@ -1,8 +1,13 @@
 import os
+
 import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv("/opt/nexus-requests/.env")
+
+
+class TorrentNotFoundError(RuntimeError):
+    """qBittorrent successfully answered, but the exact torrent is absent."""
 
 
 async def verify_torrent(torrent_hash, expected_category=None):
@@ -21,7 +26,6 @@ async def verify_torrent(torrent_hash, expected_category=None):
         raise ValueError("Invalid torrent hash characters")
 
     base = os.environ["QBT_URL"].rstrip("/")
-
     cookie_jar = aiohttp.CookieJar(unsafe=True)
 
     async with aiohttp.ClientSession(
@@ -46,17 +50,28 @@ async def verify_torrent(torrent_hash, expected_category=None):
             response.raise_for_status()
             torrents = await response.json()
 
-    matches = [
-        torrent for torrent in torrents
-        if torrent.get("hash", "").lower() == torrent_hash
-    ]
+    if not isinstance(torrents, list):
+        raise RuntimeError("Invalid qBittorrent torrent response")
 
-    if len(matches) != 1:
-        raise RuntimeError(
-            f"Expected exactly one torrent, found {len(matches)}"
+    if not torrents:
+        raise TorrentNotFoundError(
+            f"Torrent {torrent_hash} was not found in qBittorrent"
         )
 
-    torrent = matches[0]
+    if len(torrents) != 1 or not isinstance(torrents[0], dict):
+        raise RuntimeError(
+            f"Expected exactly one valid torrent, found {len(torrents)}"
+        )
+
+    torrent = torrents[0]
+    returned_hash = torrent.get("hash")
+
+    if (
+        not isinstance(returned_hash, str)
+        or returned_hash.lower() != torrent_hash
+    ):
+        raise RuntimeError("qBittorrent returned an unexpected torrent hash")
+
     category = torrent.get("category", "")
 
     if category not in ("radarr", "sonarr"):
