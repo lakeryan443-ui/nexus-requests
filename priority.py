@@ -10,23 +10,29 @@ class PriorityError(Exception):
     pass
 
 
-async def prioritize_torrent(torrent_hash):
-    """Tag and start one explicitly identified qBittorrent torrent."""
+async def prioritize_torrent(
+    torrent_hash, *, expected_category=None, session=None
+):
+    """Verify, tag, and start one explicitly identified torrent."""
 
-    if not torrent_hash or len(torrent_hash) not in (40, 64):
+    if not isinstance(torrent_hash, str):
         raise PriorityError("Invalid torrent hash")
+
+    torrent_hash = torrent_hash.strip().lower()
+
+    if (
+        len(torrent_hash) not in (40, 64)
+        or any(c not in "0123456789abcdef" for c in torrent_hash)
+    ):
+        raise PriorityError("Invalid torrent hash")
+
+    if expected_category not in (None, "radarr", "sonarr"):
+        raise PriorityError("Invalid expected category")
 
     base = os.environ["QBT_URL"].rstrip("/")
 
-    timeout = aiohttp.ClientTimeout(total=20)
-    cookie_jar = aiohttp.CookieJar(unsafe=True)
-
-    async with aiohttp.ClientSession(
-        timeout=timeout,
-        cookie_jar=cookie_jar,
-    ) as session:
-
-        async with session.post(
+    async def execute(client):
+        async with client.post(
             f"{base}/api/v2/auth/login",
             data={
                 "username": os.environ["QBT_USERNAME"],
@@ -37,49 +43,72 @@ async def prioritize_torrent(torrent_hash):
             if (await response.text()).strip() != "Ok.":
                 raise PriorityError("qBittorrent authentication failed")
 
-        async with session.get(
-            f"{base}/api/v2/torrents/info",
-            params={"hashes": torrent_hash},
-        ) as response:
-            response.raise_for_status()
-            torrents = await response.json()
+        async def exact_torrent():
+            async with client.get(
+                f"{base}/api/v2/torrents/info",
+                params={"hashes": torrent_hash},
+            ) as response:
+                response.raise_for_status()
+                torrents = await response.json()
 
-        matching = [
-            torrent for torrent in torrents
-            if torrent["hash"].lower() == torrent_hash.lower()
-        ]
+            if not isinstance(torrents, list) or len(torrents) != 1:
+                raise PriorityError(
+                    "Expected exactly one torrent in qBittorrent"
+                )
 
-        if len(matching) != 1:
-            raise PriorityError("Exact torrent not found in qBittorrent")
+            torrent = torrents[0]
 
-        torrent = matching[0]
+            if (
+                not isinstance(torrent, dict)
+                or not isinstance(torrent.get("hash"), str)
+                or torrent["hash"].lower() != torrent_hash
+            ):
+                raise PriorityError("Exact torrent hash mismatch")
 
-        if torrent.get("category") not in ("radarr", "sonarr"):
-            raise PriorityError("Torrent has an unexpected category")
+            category = torrent.get("category")
 
-        async with session.post(
+            if category not in ("radarr", "sonarr"):
+                raise PriorityError("Torrent has an unexpected category")
+
+            if expected_category and category != expected_category:
+                raise PriorityError("Torrent category mismatch")
+
+            return torrent
+
+        await exact_torrent()
+
+        async with client.post(
             f"{base}/api/v2/torrents/addTags",
             data={"hashes": torrent_hash, "tags": PRIORITY_TAG},
         ) as response:
             response.raise_for_status()
 
-        async with session.get(
-            f"{base}/api/v2/torrents/info",
-            params={"hashes": torrent_hash},
-        ) as response:
-            response.raise_for_status()
-            updated = await response.json()
+        updated = await exact_torrent()
 
-        if len(updated) != 1 or PRIORITY_TAG not in {
-            tag.strip() for tag in updated[0].get("tags", "").split(",")
+        if PRIORITY_TAG not in {
+            tag.strip() for tag in updated.get("tags", "").split(",")
         }:
             raise PriorityError("Priority tag could not be verified")
 
-        async with session.post(
+        async with client.post(
             f"{base}/api/v2/torrents/start",
             data={"hashes": torrent_hash},
         ) as response:
             response.raise_for_status()
+
+        return True
+
+    if session is not None:
+        return await execute(session)
+
+    timeout = aiohttp.ClientTimeout(total=20)
+    cookie_jar = aiohttp.CookieJar(unsafe=True)
+
+    async with aiohttp.ClientSession(
+        timeout=timeout,
+        cookie_jar=cookie_jar,
+    ) as client:
+        return await execute(client)
 
     return True
 async def find_radarr_download(tmdb_id):

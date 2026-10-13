@@ -6,172 +6,239 @@ from dotenv import load_dotenv
 
 load_dotenv("/opt/nexus-requests/.env")
 
-from priority_store import load_jobs, update_job
+from priority_store import load_jobs, update_job, transition_job
 from priority import find_radarr_download, find_sonarr_download
 from qbt_verify import verify_torrent
 
 logger = logging.getLogger("nexus.priority")
 
+FINISHED_STATES = {
+    "uploading",
+    "stalledUP",
+    "queuedUP",
+    "pausedUP",
+    "stoppedUP",
+    "forcedUP",
+}
 
-async def check_priority_jobs(raise_errors=False):
+
+def clear_waiting_verification(request_id):
+    """Clear verification only while the job remains waiting."""
+    return update_job(
+        request_id,
+        expected_status="waiting",
+        verified_hash=None,
+        verified_name=None,
+        verified_category=None,
+        verified_state=None,
+        verified_at=None,
+        dry_run_verified=False,
+    )
+
+
+async def check_processing_movie(request_id, job):
+    """Observe one started movie torrent without modifying qBittorrent."""
+    if job.get("priority_started") is not True:
+        logger.warning(
+            "Request #%s: interrupted execution needs manual review",
+            request_id,
+        )
+        return
+
+    torrent_hash = job.get("execution_hash")
+    torrent = await verify_torrent(
+        torrent_hash,
+        expected_category="radarr",
+    )
+
+    if torrent.get("hash") != torrent_hash:
+        raise ValueError("Processing torrent identity mismatch")
+
+    state = torrent.get("state")
+    progress = torrent.get("progress")
+
+    if state in {"error", "missingFiles"}:
+        update_job(
+            request_id,
+            expected_status="processing",
+            last_state=state,
+            last_checked_at=datetime.now(timezone.utc).isoformat(),
+        )
+        transition_job(
+            request_id,
+            "failed",
+            execution_error=state,
+            manual_review_required=True,
+        )
+        logger.warning(
+            "Request #%s: torrent failed with state %s",
+            request_id,
+            state,
+        )
+        return
+
+    if (
+        type(progress) not in (int, float)
+        or not 0 <= progress <= 1
+    ):
+        raise ValueError("Invalid torrent progress")
+
+    update_job(
+        request_id,
+        expected_status="processing",
+        last_progress=progress,
+        last_state=state,
+        last_checked_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+    if progress == 1 and state in FINISHED_STATES:
+        transition_job(
+            request_id,
+            "completed",
+            download_completed_at=datetime.now(timezone.utc).isoformat(),
+        )
+        logger.info(
+            "Request #%s: torrent download completed",
+            request_id,
+        )
+
+
+async def check_priority_jobs(
+    raise_errors=False, *, execute=False, request_ids=None
+):
     """
-    Read-only inspection of waiting priority jobs.
+    Verify waiting jobs and observe started movie downloads.
 
-    Does not approve requests, tag torrents,
-    or start downloads.
+    Tagging and starting require an explicit execute=True.
+    Optional request_ids restricts all inspection and execution.
+    Does not approve Seerr requests.
     """
-
+    selected_ids = (
+        None
+        if request_ids is None
+        else {str(request_id) for request_id in request_ids}
+    )
     jobs = load_jobs()
 
     for request_id, job in jobs.items():
+        if selected_ids is not None and str(request_id) not in selected_ids:
+            continue
 
-        if job.get("status") != "waiting":
+        status = job.get("status")
+
+        if status not in {"waiting", "processing"}:
+            continue
+
+        if job.get("approval_confirmed") is not True:
+            logger.info(
+                "Request #%s: Seerr approval not confirmed; skipping",
+                request_id,
+            )
             continue
 
         media_type = job.get("media_type")
         media_id = job.get("media_id")
 
-        logger.info(
-            "Checking priority request #%s (%s, ID %s)",
-            request_id,
-            media_type,
-            media_id,
-        )
+        if media_type != "movie":
+            logger.warning(
+                "Request #%s: only movie priority processing is supported; "
+                "TV matching is not yet episode-safe",
+                request_id,
+            )
+            continue
 
         try:
-            if media_type == "movie":
-                matches = await find_radarr_download(media_id)
+            if status == "processing":
+                await check_processing_movie(request_id, job)
+                continue
 
-            elif media_type == "tv":
-                # TV jobs must contain a verified TVDB ID.
-                tvdb_id = job.get("tvdb_id")
+            matches = await find_radarr_download(media_id)
 
-                if not tvdb_id:
-                    logger.warning(
-                        "Request #%s: TVDB ID missing; skipping",
-                        request_id,
-                    )
-                    continue
-
-                # Episode/season matching is not implemented yet.
-                logger.warning(
-                    "Request #%s: TV priority matching is not yet "
-                    "episode-safe; skipping",
+            if len(matches) != 1:
+                clear_waiting_verification(request_id)
+                logger.info(
+                    "Request #%s: no unique torrent match; "
+                    "verification cleared",
                     request_id,
                 )
                 continue
 
-            else:
-                logger.warning(
-                    "Request #%s: unsupported media type %s",
-                    request_id,
-                    media_type,
-                )
-                continue
+            torrent_hash = matches[0]
+            torrent = await verify_torrent(
+                torrent_hash,
+                expected_category="radarr",
+            )
 
-            if matches:
-                if len(matches) != 1:
-                    logger.warning(
-                        "Request #%s: found %d torrents; "
-                        "skipping ambiguous priority action",
-                        request_id,
-                        len(matches),
-                    )
-                    continue
-
-                torrent_hash = matches[0]
-                torrent = await verify_torrent(
-                    torrent_hash,
-                    expected_category="radarr",
-                )
-                # Persist verified information without changing
-                # the job's waiting status or touching qBittorrent.
-                update_job(
-                    request_id,
-                    verified_hash=torrent_hash,
-                    verified_name=torrent["name"],
-                    verified_category=torrent["category"],
-                    verified_state=torrent["state"],
-                    dry_run_verified=True,
-                    verified_at=datetime.now(timezone.utc).isoformat(),
- )
-
-                logger.info(
-                    "  qBittorrent verification: PASS"
-                )
-                logger.info(
-                    "  Torrent name: %s",
-                    torrent["name"],
-                )
-                logger.info(
-                    "  Category: %s",
-                    torrent["category"],
-                )
-                logger.info(
-                    "  Current state: %s",
-                    torrent["state"],
-                )
-                logger.info(
-                    "DRY RUN — Request #%s",
-                    request_id,
-                )
-                logger.info(
-                    "  Media type: %s",
-                    media_type,
-                )
-                logger.info(
-                    "  Media ID: %s",
-                    media_id,
-                )
-                logger.info(
-                    "  Torrent hash: %s",
-                    torrent_hash,
-                )
-                logger.info(
-                    "  Intended action: add nexus-priority tag "
-                    "and start this torrent only"
-                )
-            else:
-                update_job(
-                    request_id,
-                    verified_hash=None,
-                    verified_name=None,
-                    verified_category=None,
-                    verified_state=None,
-                    verified_at=None,
-                    dry_run_verified=False,
-                )
-                logger.info(
-                    "Request #%s: no matching torrent yet; previous verification cleared",
-                    request_id,
-                )
-
-        except Exception:
             update_job(
                 request_id,
-                verified_hash=None,
-                verified_name=None,
-                verified_category=None,
-                verified_state=None,
-                verified_at=None,
-                dry_run_verified=False,
+                expected_status="waiting",
+                verified_hash=torrent_hash,
+                verified_name=torrent["name"],
+                verified_category=torrent["category"],
+                verified_state=torrent["state"],
+                dry_run_verified=True,
+                verified_at=datetime.now(timezone.utc).isoformat(),
             )
+
+            if execute is True:
+                from movie_priority import execute_movie_priority
+
+                await execute_movie_priority(
+                    request_id,
+                    enabled=True,
+                )
+                continue
+
+            logger.info(
+                "DRY RUN — Request #%s: verified torrent %s; "
+                "no tag or start action performed",
+                request_id,
+                torrent_hash,
+            )
+
+        except Exception as exc:
+            if (
+                isinstance(exc, ValueError)
+                and str(exc).startswith("Job status changed:")
+            ):
+                logger.info(
+                    "Request #%s: status changed during inspection; "
+                    "discarding stale result",
+                    request_id,
+                )
+                if raise_errors:
+                    raise
+                continue
+
+            if status == "waiting":
+                try:
+                    clear_waiting_verification(request_id)
+                except ValueError:
+                    logger.warning(
+                        "Request #%s: verification cleanup rejected; "
+                        "skipping stale verification update",
+                        request_id,
+                    )
+
             logger.exception(
-                "Request #%s: priority lookup failed; verification cleared",
+                "Request #%s: priority inspection failed",
                 request_id,
             )
+
             if raise_errors:
                 raise
-async def priority_worker_loop(interval=30):
-    """
-    Periodically inspect priority jobs.
 
-    Read-only until active processing is implemented.
-    """
 
+async def priority_worker_loop(
+    interval=30, *, execute=False, request_ids=None
+):
+    """Inspect selected jobs; torrent execution defaults to disabled."""
     while True:
         try:
-            await check_priority_jobs()
+            await check_priority_jobs(
+                execute=execute,
+                request_ids=request_ids,
+            )
         except Exception:
             logger.exception("Priority worker cycle failed")
 

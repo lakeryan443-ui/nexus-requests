@@ -25,10 +25,15 @@ ADMIN_IDS = {
 
 
 class RequestView(discord.ui.View):
-    def __init__(self, request_id):
+    priority_enabled = True
+
+    def __init__(self, request_id, media_type=None):
         super().__init__(timeout=None)
         self.request_id = request_id
         self.processing = False
+        self.priority.disabled = not (
+            self.priority_enabled is True and media_type == "movie"
+        )
 
     async def change_request(self, interaction, action):
         if interaction.user.id not in ADMIN_IDS:
@@ -64,9 +69,7 @@ class RequestView(discord.ui.View):
                     )
                     return
 
-                async with session.post(
-                    f"{url}/{action}"
-                ) as response:
+                async with session.post(f"{url}/{action}") as response:
                     response.raise_for_status()
 
             for item in self.children:
@@ -115,10 +118,98 @@ class RequestView(discord.ui.View):
         disabled=True,
     )
     async def priority(self, interaction, button):
-        await interaction.response.send_message(
-            "Priority downloading is not enabled yet.",
-            ephemeral=True,
+        await self.change_priority(interaction)
+
+    async def change_priority(self, interaction):
+        from movie_priority import (
+            MoviePriorityError,
+            approve_movie_priority,
+            validate_movie_request,
         )
+
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "You are not authorized to manage requests.",
+                ephemeral=True,
+            )
+            return
+
+        if self.priority_enabled is not True:
+            await interaction.response.send_message(
+                "Priority downloading is not enabled yet.",
+                ephemeral=True,
+            )
+            return
+
+        if self.processing:
+            await interaction.response.send_message(
+                "This request is already being processed.",
+                ephemeral=True,
+            )
+            return
+
+        self.processing = True
+
+        try:
+            await interaction.response.defer(ephemeral=True)
+            headers = {"X-Api-Key": SEERR_KEY}
+
+            async with aiohttp.ClientSession(headers=headers) as session:
+                url = f"{SEERR_URL}/api/v1/request/{self.request_id}"
+
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    request = await response.json()
+
+                validate_movie_request(self.request_id, request)
+
+                await approve_movie_priority(
+                    self.request_id,
+                    request,
+                    session=session,
+                )
+
+            for item in self.children:
+                item.disabled = True
+
+            await interaction.message.edit(view=self)
+            await interaction.followup.send(
+                f"Request #{self.request_id}: Seerr approval confirmed "
+                "and priority intent recorded. "
+                "Torrent start is not yet confirmed.",
+                ephemeral=True,
+            )
+
+        except MoviePriorityError:
+            logging.exception(
+                "Priority request #%s rejected or approval unconfirmed",
+                self.request_id,
+            )
+            await interaction.followup.send(
+                "Priority approval could not be confirmed. "
+                "Check the request and priority job before retrying.",
+                ephemeral=True,
+            )
+
+        except Exception:
+            logging.exception(
+                "Priority request #%s failed",
+                self.request_id,
+            )
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    "Priority request failed. Check its status "
+                    "and the bot logs before retrying.",
+                    ephemeral=True,
+                )
+            else:
+                await interaction.response.send_message(
+                    "Priority request failed. Check the bot logs.",
+                    ephemeral=True,
+                )
+
+        finally:
+            self.processing = False
 
     @discord.ui.button(
         label="Decline",
@@ -129,11 +220,235 @@ class RequestView(discord.ui.View):
         await self.change_request(interaction, "decline")
 
 
+def get_recovery_notifications():
+    """Prepare notifications for interrupted priority jobs."""
+    from priority_store import find_interrupted_jobs
+
+    interrupted = find_interrupted_jobs()
+    notifications = []
+
+    for request_id, job in interrupted.items():
+        notifications.append({
+            "request_id": str(request_id),
+            "media_type": job.get("media_type", "unknown"),
+            "media_id": job.get("media_id"),
+            "status": job.get("status"),
+        })
+
+    return notifications
+
+
+def build_recovery_embed(notification):
+    """Build a Discord embed for an interrupted priority job."""
+    request_id = notification["request_id"]
+    media_type = notification["media_type"]
+    media_id = notification["media_id"]
+
+    embed = discord.Embed(
+        title="Interrupted Priority Download",
+        description=(
+            f"Seerr request #{request_id} was interrupted "
+            "while Nexus Requests was processing it.\n\n"
+            "An administrator must review this job before "
+            "any recovery action occurs."
+        ),
+        color=discord.Color.orange(),
+    )
+
+    embed.add_field(
+        name="Media Type",
+        value=str(media_type).upper(),
+        inline=True,
+    )
+
+    embed.add_field(
+        name="Media ID",
+        value=str(media_id),
+        inline=True,
+    )
+
+    embed.add_field(
+        name="Recovery Options",
+        value=(
+            "**Continue:** Revalidate the request and exact torrent "
+            "before attempting recovery.\n"
+            "**Cancel:** Cancel only the priority job. "
+            "The original Seerr request remains unchanged."
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(
+        text="Nexus Requests | Administrator recovery required"
+    )
+
+    return embed
+
+
+class RecoveryView(discord.ui.View):
+    """Administrator recovery controls for interrupted jobs."""
+
+    def __init__(self, request_id):
+        super().__init__(timeout=None)
+        self.request_id = str(request_id)
+
+    async def interaction_check(self, interaction):
+        """Allow only configured Nexus Requests administrators."""
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "Only Nexus Requests administrators can use "
+                "these recovery controls.",
+                ephemeral=True,
+            )
+            return False
+
+        return True
+
+    @discord.ui.button(
+        label="Continue",
+        style=discord.ButtonStyle.success,
+        custom_id="nexus_recovery_continue",
+        disabled=True,
+    )
+    async def continue_job(self, interaction, button):
+        from priority_store import validate_recovery_job
+
+        valid, reason = validate_recovery_job(self.request_id)
+
+        if not valid:
+            await interaction.response.send_message(
+                f"Recovery blocked: {reason}",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            "Recovery job validated. Continue is not enabled yet.",
+            ephemeral=True,
+        )
+
+    @discord.ui.button(
+        label="Cancel",
+        style=discord.ButtonStyle.danger,
+        custom_id="nexus_recovery_cancel",
+        disabled=True,
+    )
+    async def cancel_job(self, interaction, button):
+        from priority_store import validate_recovery_job
+
+        valid, reason = validate_recovery_job(self.request_id)
+
+        if not valid:
+            await interaction.response.send_message(
+                f"Cancellation blocked: {reason}",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            "Recovery job validated. Cancellation is not enabled yet.",
+            ephemeral=True,
+        )
+
+
+class PersistentRequestView(discord.ui.View):
+    """Restore request-card callbacks using their embedded request IDs."""
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.request_views = {}
+
+    async def dispatch(self, interaction, action):
+        message = interaction.message
+        bot_user = interaction.client.user
+
+        if (
+            interaction.channel_id != CHANNEL_ID
+            or message is None
+            or bot_user is None
+            or message.author.id != bot_user.id
+        ):
+            await interaction.response.send_message(
+                "This is not a valid Nexus request card.",
+                ephemeral=True,
+            )
+            return
+
+        values = [
+            str(field.value).strip()
+            for embed in message.embeds
+            for field in embed.fields
+            if field.name == "Request ID"
+        ]
+
+        if (
+            len(values) != 1
+            or not values[0].isascii()
+            or not values[0].isdigit()
+            or int(values[0]) <= 0
+        ):
+            await interaction.response.send_message(
+                "The request card has an invalid request ID.",
+                ephemeral=True,
+            )
+            return
+
+        request_id = int(values[0])
+        view = self.request_views.get(message.id)
+
+        if view is None:
+            media_types = [
+                str(field.value).strip().lower()
+                for embed in message.embeds
+                for field in embed.fields
+                if field.name == "Media Type"
+            ]
+            media_type = media_types[0] if len(media_types) == 1 else None
+            view = RequestView(request_id, media_type=media_type)
+            self.request_views[message.id] = view
+        elif view.request_id != request_id:
+            await interaction.response.send_message(
+                "The request card identity changed. Manual review required.",
+                ephemeral=True,
+            )
+            return
+
+        if action == "priority":
+            await view.change_priority(interaction)
+        else:
+            await view.change_request(interaction, action)
+
+    @discord.ui.button(
+        label="Approve",
+        style=discord.ButtonStyle.success,
+        custom_id="nexus_approve",
+    )
+    async def approve(self, interaction, button):
+        await self.dispatch(interaction, "approve")
+
+    @discord.ui.button(
+        label="Approve & Download Now",
+        style=discord.ButtonStyle.primary,
+        custom_id="nexus_priority",
+        disabled=True,
+    )
+    async def priority(self, interaction, button):
+        await self.dispatch(interaction, "priority")
+
+    @discord.ui.button(
+        label="Decline",
+        style=discord.ButtonStyle.danger,
+        custom_id="nexus_decline",
+    )
+    async def decline(self, interaction, button):
+        await self.dispatch(interaction, "decline")
+
 
 class NexusBot(discord.Client):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.monitor_task = None
+        self.priority_task = None
         self.posted_file = "/opt/nexus-requests/istate/posted_requests.json"
         self.posted_ids = set()
 
@@ -148,7 +463,35 @@ class NexusBot(discord.Client):
                 raise
 
     async def setup_hook(self):
-        self.monitor_task = asyncio.create_task(self.monitor_requests())
+        from priority_worker import priority_worker_loop
+
+        self.add_view(PersistentRequestView())
+
+        self.monitor_task = asyncio.create_task(
+            self.monitor_requests(),
+            name="nexus-request-monitor",
+        )
+        self.priority_task = asyncio.create_task(
+            priority_worker_loop(
+                execute=RequestView.priority_enabled,
+            ),
+            name="nexus-priority-worker",
+        )
+
+    async def close(self):
+        tasks = [
+            task
+            for task in (self.monitor_task, self.priority_task)
+            if task is not None
+        ]
+
+        for task in tasks:
+            task.cancel()
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        await super().close()
 
     async def on_ready(self):
         logging.info("Connected to Discord as %s", self.user)
@@ -233,6 +576,7 @@ class NexusBot(discord.Client):
         )
 
         embed.add_field(name="Request ID", value=str(request_id))
+        embed.add_field(name="Media Type", value=media_type.upper())
         embed.add_field(
             name="Requested By",
             value=(
@@ -250,15 +594,15 @@ class NexusBot(discord.Client):
             )
 
         channel = await self.fetch_channel(CHANNEL_ID)
-        await channel.send(embed=embed, view=RequestView(request_id))
+        await channel.send(
+            embed=embed,
+            view=RequestView(request_id, media_type=media_type),
+        )
 
         logging.info("Posted Discord card for request #%s", request_id)
 
 
-intents = discord.Intents.default()
-client = NexusBot(intents=intents)
-
-# Request posting and persistent button registration
-# will be wired up after our first controlled test.
-
-client.run(TOKEN)
+if __name__ == "__main__":
+    intents = discord.Intents.default()
+    client = NexusBot(intents=intents)
+    client.run(TOKEN)

@@ -21,3 +21,8 @@ istate/
 # Editor files
 .vscode/
 .idea/
+
+# Local backups and controlled test runners
+*.backup-*
+discord_live_test12.py
+live_test_movie12.py
