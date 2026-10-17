@@ -5,7 +5,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-STORE = Path("/opt/nexus-requests/istate/priority_requests.json")
+STORE = Path("/opt/nexus-requests-rebuild/istate/priority_requests.json")
 @contextmanager
 def priority_store_lock():
     """Exclusively lock priority storage across local processes."""
