@@ -6,7 +6,7 @@ import aiohttp
 import discord
 from dotenv import load_dotenv
 
-load_dotenv("/opt/nexus-requests/.env")
+load_dotenv("/opt/nexus-requests-rebuild/.env")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +32,7 @@ class RequestView(discord.ui.View):
         self.request_id = request_id
         self.processing = False
         self.priority.disabled = not (
-            self.priority_enabled is True and media_type == "movie"
+            self.priority_enabled is True and media_type in ("movie", "tv")
         )
 
     async def change_request(self, interaction, action):
@@ -115,7 +115,7 @@ class RequestView(discord.ui.View):
         label="Approve & Download Now",
         style=discord.ButtonStyle.primary,
         custom_id="nexus_priority",
-        disabled=True,
+        disabled=False,
     )
     async def priority(self, interaction, button):
         await self.change_priority(interaction)
@@ -126,6 +126,11 @@ class RequestView(discord.ui.View):
             approve_movie_priority,
             validate_movie_request,
         )
+        from tv_priority_execution import (
+            TVPriorityError,
+            approve_tv_priority,
+        )
+        from tv_request import validate_tv_request
 
         if interaction.user.id not in ADMIN_IDS:
             await interaction.response.send_message(
@@ -161,13 +166,26 @@ class RequestView(discord.ui.View):
                     response.raise_for_status()
                     request = await response.json()
 
-                validate_movie_request(self.request_id, request)
+                media_type = request.get("type")
 
-                await approve_movie_priority(
-                    self.request_id,
-                    request,
-                    session=session,
-                )
+                if media_type == "movie":
+                    validate_movie_request(self.request_id, request)
+                    await approve_movie_priority(
+                        self.request_id,
+                        request,
+                        session=session,
+                    )
+                elif media_type == "tv":
+                    validate_tv_request(self.request_id, request)
+                    await approve_tv_priority(
+                        self.request_id,
+                        request,
+                        session=session,
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported Seerr media type: {media_type!r}"
+                    )
 
             for item in self.children:
                 item.disabled = True
@@ -180,7 +198,7 @@ class RequestView(discord.ui.View):
                 ephemeral=True,
             )
 
-        except MoviePriorityError:
+        except (MoviePriorityError, TVPriorityError, ValueError):
             logging.exception(
                 "Priority request #%s rejected or approval unconfirmed",
                 self.request_id,
@@ -449,7 +467,7 @@ class NexusBot(discord.Client):
         super().__init__(**kwargs)
         self.monitor_task = None
         self.priority_task = None
-        self.posted_file = "/opt/nexus-requests/istate/posted_requests.json"
+        self.posted_file = "/opt/nexus-requests-rebuild/istate/posted_requests.json"
         self.posted_ids = set()
 
         import json
@@ -463,7 +481,7 @@ class NexusBot(discord.Client):
                 raise
 
     async def setup_hook(self):
-        from priority_worker import priority_worker_loop
+        from priority_worker_rebuild import priority_worker_loop
 
         self.add_view(PersistentRequestView())
 
