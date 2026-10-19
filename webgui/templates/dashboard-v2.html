@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexus Requests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--line:rgba(111,195,255,.22);--card:rgba(8,31,66,.88);--muted:#b2c8df;--cyan:#5bd0ff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(125deg,rgba(2,12,32,.43),rgba(2,19,46,.38)),url('/static/nexus-background.webp') center/cover fixed no-repeat,#071d39;color:#fff;font:400 15px/1.5 Inter,Arial,sans-serif}
+header{background:rgba(3,18,43,.64);border-bottom:1px solid var(--line);padding:16px clamp(20px,4vw,56px);display:flex;align-items:center;justify-content:space-between;gap:20px;backdrop-filter:blur(14px)}header img{display:block;width:240px;max-width:55vw;height:auto}header .edition{color:#a9c9e9;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+main{max-width:1500px;margin:auto;padding:34px clamp(18px,4vw,56px) 70px}.intro{margin-bottom:26px}.intro h1{font:700 clamp(27px,3vw,38px)/1.2 'Space Grotesk',sans-serif;margin:0 0 8px}.intro p{margin:0;color:var(--muted)}.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:22px;align-items:stretch}.stack{display:grid;gap:14px;align-content:start}.panel,.about{background:var(--card);border:1px solid var(--line);border-radius:17px;box-shadow:0 10px 30px rgba(0,0,0,.12);backdrop-filter:blur(13px)}.panel{padding:20px}.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:18px}.panel h2,.about h2{font:700 21px/1.3 'Space Grotesk',sans-serif;margin:0}.desc{color:var(--muted);font-size:13px;margin:5px 0 0}.fields{display:grid;gap:15px;margin-top:17px}.field{display:grid;grid-template-columns:minmax(115px,.75fr) minmax(0,1.4fr);gap:12px 18px;align-items:start}.field label{font-weight:600;padding-top:10px}.field-control{min-width:0}.field input,.field select{width:100%;min-height:42px;background:#06172f;color:#fff;border:1px solid #39628a;border-radius:9px;padding:10px 12px;font:inherit}.field input:focus,.field select:focus{outline:2px solid #4cc6ff;outline-offset:1px}.hint{color:#b4cbe3;font-size:12px;margin:7px 0 0}.hint strong{color:#d7eafa;font-weight:500}.toggle{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0}.toggle input{position:absolute;opacity:0;width:1px;height:1px}.switch{width:48px;height:27px;background:#53657b;border-radius:50px;position:relative;transition:background .2s}.switch:after{content:'';position:absolute;top:4px;left:4px;width:19px;height:19px;border-radius:50%;background:white;transition:transform .2s}.toggle input:checked+.switch{background:#087ee8}.toggle input:checked+.switch:after{transform:translateX(21px)}.toggle input:focus-visible+.switch{outline:2px solid #fff;outline-offset:3px}.toggle-word{color:var(--muted);font-size:12px;min-width:23px}.expanded{display:none;border-top:1px solid var(--line);margin-top:18px;padding-top:2px}.panel:has(.toggle input:checked) .expanded{display:block}.about{padding:26px;min-height:100%;display:flex;flex-direction:column;gap:18px}.about p{color:var(--muted);margin:0}.about h3{font:700 16px 'Space Grotesk',sans-serif;margin:0 0 8px}.about hr{width:100%;border:0;border-top:1px solid var(--line);margin:3px 0}.about .note{margin-top:auto;padding:15px;background:rgba(18,76,125,.35);border-radius:10px;font-size:13px;color:#c4ddf4}.status{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#a8e2c6}.dot{width:8px;height:8px;background:#54d8a0;border-radius:50%}.chip{font-size:11px;color:#a8dfff;border:1px solid #366d98;border-radius:30px;padding:4px 9px}.foot{color:#b8cce1;font-size:12px;margin-top:20px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.about{min-height:280px}}@media(max-width:560px){header{padding:15px 18px}header img{width:185px}.edition{display:none}.field{grid-template-columns:1fr;gap:4px}.field label{padding-top:0}.panel{padding:16px}.panel h2{font-size:19px}}
+</style>
+</head>
+<body>
+<header><img src="/static/nexus-requests-logo-v3.png" alt="Nexus Requests logo"><span class="edition">Manage Media Requests · Download Scheduler · Priority Downloads</span>
+<div id="nexus-account-menu" style="margin-left:auto;position:relative;flex-shrink:0">
+  <details style="position:relative">
+    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:9px;padding:9px 13px;border:1px solid rgba(100,205,255,.35);border-radius:10px;background:rgba(20,126,191,.16);color:#c6edff;font-weight:700">
+      <span aria-hidden="true">◉</span>
+      <span>Admin</span>
+      <span aria-hidden="true">⌄</span>
+    </summary>
+    <div style="position:absolute;right:0;top:calc(100% + 8px);z-index:1000;min-width:170px;padding:8px;border:1px solid rgba(100,205,255,.3);border-radius:10px;background:#152335;box-shadow:0 10px 30px rgba(0,0,0,.35)">
+      <form method="post" action="/logout" style="margin:0">
+        <button type="submit" style="display:block;width:100%;padding:11px 12px;text-align:left;border:0;border-radius:7px;background:transparent;color:#e5edf7;cursor:pointer;font:inherit">
+          ↪ Log out
+        </button>
+      </form>
+    </div>
+  </details>
+</div>
+
+</header>
+<main>
+<section class="intro"><h1>Nexus Requests</h1><p>Create a nightly media download window to keep downloads from slowing your internet during the day, while allowing your media to download at full speed overnight.</p><p>Manage your media requests from away using Discord approvals.</p></section>
+<div class="layout">
+<div class="stack">
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Scheduler</h2>
+      <p class="desc">Set your nightly download window with ease.</p>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" aria-label="Enable scheduler"
+             onchange="toggleLabel(this)">
+      <span class="switch"></span>
+      <span class="toggle-word">Off</span>
+    </label>
+  </div>
+  <div class="expanded">
+    <div class="fields">
+      <div class="field">
+        <label for="schedule-start">Start time</label>
+        <div class="field-control">
+          <input id="schedule-start" type="time" value="02:00">
+          <p class="hint">When scheduled downloads begin.</p>
+        </div>
+      </div>
+      <div class="field">
+        <label for="schedule-end">End time</label>
+        <div class="field-control">
+          <input id="schedule-end" type="time" value="06:00">
+          <p class="hint">When the download window closes.</p>
+        </div>
+      </div>
+      <div class="field">
+        <label for="schedule-timezone">Timezone</label>
+        <div class="field-control">
+          <select id="schedule-timezone">
+            <option value="">Detecting timezone...</option>
+          </select>
+          <p class="hint" id="timezone-hint">
+            Automatically detected from your device. You can change it.
+          </p>
+        </div>
+      </div>
+    </div>
+    <p class="hint">Default: 2:00 AM – 6:00 AM.
+    Times will use your configured timezone.
+    Settings are not yet connected to the scheduler.</p>
+  </div>
+</section>
+<section class="panel"><div class="panel-heading"><div><h2>Seerr</h2><p class="desc">Media request management</p></div><span class="chip">Integration</span></div><div class="fields">
+<div class="field"><label for="seerr-url">Server URL</label><div class="field-control"><input id="seerr-url" placeholder="Server IP address" name="nexus-config-seerr-url" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint">Enter the address used to access your Seerr server.</p></div></div>
+<div class="field"><label for="seerr-key">API key</label><div class="field-control"><input id="seerr-key" type="password" placeholder="Enter Seerr API key" name="nexus-config-seerr-key" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint"><strong>Find it:</strong> Seerr → Settings → API Key</p></div></div>
+</div><div style="margin-top:14px"><button type="button" data-connection-test="Seerr" style="padding:10px 16px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;opacity:1;cursor:pointer">Test Connection</button></div></section>
+<section class="panel"><div class="panel-heading"><div><h2>qBittorrent</h2><p class="desc">Required download client · Connection and automatic setup</p></div><span class="chip">Required</span></div><div class="qbit-fields" style="display:block!important;max-height:none!important;overflow:visible!important;opacity:1!important;visibility:visible!important"><div class="fields"><div class="field"><label for="qbit-url">Web UI URL</label><div class="field-control"><input id="qbit-url" placeholder="Server IP address" name="nexus-config-qbit-url" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint"><strong>Find it:</strong> qBittorrent → Tools → Options → Web UI</p></div></div><div class="field"><label for="qbit-user">Username</label><div class="field-control"><input id="qbit-user" placeholder="Username" name="nexus-config-qbit-user" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div></div><div class="field"><label for="qbit-pass">Password</label><div class="field-control"><input id="qbit-pass" type="password" placeholder="Password" name="nexus-config-qbit-pass" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div></div></div></div><div style="margin-top:14px"><button type="button" data-connection-test="qBittorrent" style="padding:10px 16px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;opacity:1;cursor:pointer">Test Connection</button></div></section>
+
+<section class="panel"><div class="panel-heading"><div><h2>Radarr</h2><p class="desc">Movie management</p></div><label class="toggle"><input type="checkbox" aria-label="Enable Radarr" onchange="toggleLabel(this)"><span class="switch"></span><span class="toggle-word">Off</span></label></div><div class="expanded"><div class="fields"><div class="field"><label for="radarr-url">Server URL</label><div class="field-control"><input id="radarr-url" placeholder="Server IP address" name="nexus-config-radarr-url" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint">Address of your Radarr instance.</p></div></div><div class="field"><label for="radarr-key">API key</label><div class="field-control"><input id="radarr-key" type="password" placeholder="Enter Radarr API key" name="nexus-config-radarr-key" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint"><strong>Find it:</strong> Radarr → Settings → General → Security → API Key</p></div></div></div></div><div style="margin-top:14px"><button type="button" data-connection-test="Radarr" style="padding:10px 16px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;opacity:1;cursor:pointer">Test Connection</button></div></section>
+
+<section class="panel"><div class="panel-heading"><div><h2>Sonarr</h2><p class="desc">TV series management</p></div><label class="toggle"><input type="checkbox" aria-label="Enable Sonarr" onchange="toggleLabel(this)"><span class="switch"></span><span class="toggle-word">Off</span></label></div><div class="expanded"><div class="fields"><div class="field"><label for="sonarr-url">Server URL</label><div class="field-control"><input id="sonarr-url" placeholder="Server IP address" name="nexus-config-sonarr-url" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint">Address of your Sonarr instance.</p></div></div><div class="field"><label for="sonarr-key">API key</label><div class="field-control"><input id="sonarr-key" type="password" placeholder="Enter Sonarr API key" name="nexus-config-sonarr-key" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><p class="hint"><strong>Find it:</strong> Sonarr → Settings → General → Security → API Key</p></div></div></div></div><div style="margin-top:14px"><button type="button" data-connection-test="Sonarr" style="padding:10px 16px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;opacity:1;cursor:pointer">Test Connection</button></div></section>
+
+<section class="panel" id="discord-setup-panel">
+  <div class="panel-heading"><div><h2>Discord Bot</h2><p class="desc">Discord notification and approval cards</p></div><span class="chip">Guided setup preview</span></div>
+  <div class="nexus-discord-guide" style="margin-top:16px;display:grid;gap:16px">
+    <div style="padding:16px;border:1px solid rgba(125,205,255,.23);border-radius:14px;background:rgba(20,52,80,.26)">
+      <h3 style="margin:0 0 8px">Create Notification Bot</h3>
+      <p class="hint" style="margin:0 0 12px">Follow these steps to set up your Nexus Requests notification bot.</p>
+      <div style="display:grid;gap:10px">
+        <div><strong>1. Create your Discord application</strong><p class="hint">Open the Discord Developer Portal, select New Application, and name it Nexus Requests. Then open its Bot page.</p>
+          <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:7px;padding:9px 13px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;text-decoration:none;font-weight:700">Open Discord Developer Portal ↗</a>
+        </div>
+        <div><strong>2. Connect your bot</strong><p class="hint">Copy the Application ID from General Information and the bot token from Bot. Keep the token private.</p></div>
+        <div><strong>3. Invite the bot</strong><p class="hint">A future version will generate the invite link and verify the required permissions.</p></div>
+        <div><strong>4. Create the notification channel</strong><p class="hint">After authorization, Nexus Requests will find or create <strong>#nexus-requests</strong> in the selected server, without making duplicates.</p></div>
+        <div><strong>5. Verify and activate</strong><p class="hint">A future connection test will confirm permissions and send a test notification.</p></div>
+      </div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="discord-application-id">Application ID</label><div class="field-control"><input id="discord-application-id" inputmode="numeric" placeholder="Discord Application ID" autocomplete="off"><p class="hint"><strong>Find it:</strong> Developer Portal → Your App → General Information → Application ID</p></div></div>
+      <div class="field"><label for="discord-guild-id">Discord Server ID</label><div class="field-control"><input id="discord-guild-id" inputmode="numeric" placeholder="Discord Server ID" autocomplete="off"><p class="hint"><strong>Find it:</strong> Enable Developer Mode in Discord → right-click your server → Copy Server ID.</p></div></div>
+      <div class="field"><label for="discord-token">Bot token</label><div class="field-control"><input id="discord-token" type="password" autocomplete="off" placeholder="Discord bot token"><p class="hint"><strong>Find it:</strong> Discord Developer Portal → Applications → Your App → Bot → Token</p></div></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button type="button" id="discord-test-connection"
+        style="padding:10px 16px;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;cursor:pointer">
+        Connect Discord &amp; Send Test
+      </button>
+      <span id="discord-test-result" role="status" aria-live="polite"></span>
+    </div>
+    <div role="note" style="padding:13px 15px;border:1px solid rgba(170,190,210,.24);border-radius:12px;background:rgba(130,155,175,.08)">
+      <p style="margin:0 0 7px;font-weight:700;font-size:.92em">ⓘ Required Discord permissions</p>
+      <p class="hint" style="margin:0">Your bot must be allowed to <strong>View Channels, Send Messages, Embed Links, Read Message History</strong> and <strong>Manage Channels</strong> (for automatic channel creation). Nexus Requests will request these during setup. You can remove Manage Channels after the channel is created.</p>
+    </div>
+    <p class="hint" style="margin:0"><strong>Preview only:</strong> These fields do not save or submit credentials yet. Do not enter a real bot token until secure setup is implemented.</p>
+  </div>
+</section>
+<div style="margin:24px 0;text-align:center">
+  <button type="button" id="global-save"
+    style="padding:15px 30px;font-size:1.1em;border-radius:9px;border:1px solid rgba(100,205,255,.5);background:rgba(20,126,191,.22);color:#c6edff;font-weight:700;cursor:pointer">
+    Save Settings
+  </button>
+</div>
+</div>
+<aside class="about"><div><h2>About Nexus Requests</h2><p style="margin-top:10px">Nexus Requests is a custom download scheduler and remote approval app for media requests through Seerr. Manage requests through Discord with Approve and Decline options, plus an Approve &amp; Download Now feature to download media immediately outside your scheduled window.</p></div><hr><div><h3>What it connects</h3><p>Seerr, Radarr, Sonarr, qBittorrent, and Discord — managed through one interface.</p></div><hr><div><h3>Dashboard status</h3><p><span class="status"><span class="dot"></span>UI preview ready</span></p><p style="margin-top:9px">Controls are interactive locally in your browser. Integration connections and settings storage are not enabled.</p></div><hr><div><h3>Coming next</h3><p>Connection testing, secure settings storage, real service status, priority download controls, and request monitoring.</p></div><div class="note"><strong>Preview mode:</strong> Do not enter real passwords, API keys, or tokens yet. This page intentionally does not save or submit values.</div></aside>
+</div><p class="foot">Nexus Requests · Media request management</p>
+
+
+</main>
+<script>function toggleLabel(input){const label=input.closest('.toggle').querySelector('.toggle-word');label.textContent=input.checked?'On':'Off'}</script>
+
+<script>
+(function () {
+  const select = document.getElementById("schedule-timezone");
+  const hint = document.getElementById("timezone-hint");
+  if (!select || !hint) return;
+
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const zones = typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : ["UTC", "America/New_York", "America/Chicago",
+       "America/Denver", "America/Los_Angeles", "Europe/London"];
+
+  const allZones = [...new Set(["UTC", detected, ...zones])].sort();
+
+  select.replaceChildren();
+  for (const zone of allZones) {
+    const option = document.createElement("option");
+    option.value = zone;
+    option.textContent = zone.replaceAll("_", " ");
+    select.appendChild(option);
+  }
+
+  select.value = detected;
+  hint.textContent = "Detected from your device: " + detected +
+    ". Change this if your downloads should follow another timezone.";
+})();
+</script>
+
+
+<script>
+(function () {
+  const fields = ['qbit-url', 'qbit-user', 'qbit-pass'];
+  const button = document.querySelector('[data-connection-test="qBittorrent"]');
+  if (!button) return;
+
+  function updateButton() {
+    const ready = fields.every(id => {
+      const field = document.getElementById(id);
+      return field && field.value.trim().length > 0;
+    });
+
+    button.disabled = !ready;
+    button.style.opacity = ready ? '1' : '.45';
+    button.style.cursor = ready ? 'pointer' : 'not-allowed';
+  }
+
+  fields.forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateButton);
+  });
+
+
+  updateButton();
+})();
+</script>
+
+
+<script>
+(() => {
+  const integrations = {
+    Seerr: ['seerr-url', 'seerr-key'],
+    qBittorrent: ['qbit-url', 'qbit-user', 'qbit-pass'],
+    Radarr: ['radarr-url', 'radarr-key'],
+    Sonarr: ['sonarr-url', 'sonarr-key']
+  };
+
+  for (const [service, fieldIds] of Object.entries(integrations)) {
+    const button = document.querySelector(
+      `[data-connection-test="${service}"]`
+    );
+    const fields = fieldIds.map(id => document.getElementById(id));
+
+    if (!button || fields.some(field => !field)) continue;
+
+    const update = () => {
+      const ready = fields.every(field => field.value.trim() !== '');
+      button.disabled = !ready;
+    };
+
+    fields.forEach(field => field.addEventListener('input', update));
+    update();
+  }
+})();
+</script>
+
+
+<script>
+/* nexus-v4-integration-tests */
+(() => {
+  const integrations = {
+    Seerr: {
+      service: 'seerr',
+      fields: {url: 'seerr-url', api_key: 'seerr-key'}
+    },
+    qBittorrent: {
+      service: 'qbittorrent',
+      fields: {url: 'qbit-url', username: 'qbit-user', password: 'qbit-pass'}
+    },
+    Radarr: {
+      service: 'radarr',
+      fields: {url: 'radarr-url', api_key: 'radarr-key'}
+    },
+    Sonarr: {
+      service: 'sonarr',
+      fields: {url: 'sonarr-url', api_key: 'sonarr-key'}
+    }
+  };
+
+  async function api(path, options = {}) {
+    const response = await fetch(path, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      redirect: 'error',
+      ...options
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Authentication or security check failed');
+      }
+      throw new Error('Request failed (HTTP ' + response.status + ')');
+    }
+
+    return response.json();
+  }
+
+  for (const [name, config] of Object.entries(integrations)) {
+    const button = document.querySelector(
+      '[data-connection-test="' + name + '"]'
+    );
+    if (!button) continue;
+
+    const fields = Object.entries(config.fields).map(([key, id]) => ({
+      key,
+      element: document.getElementById(id)
+    }));
+
+    if (fields.some(field => !field.element)) continue;
+
+    const status = document.createElement('p');
+    status.className = 'hint';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    button.parentElement.appendChild(status);
+
+    let busy = false;
+
+    function updateButton() {
+      const ready = fields.every(
+        field => field.element.value.trim() !== ''
+      );
+      button.disabled = busy || !ready;
+      button.style.opacity = button.disabled ? '.45' : '1';
+      button.style.cursor = button.disabled ? 'not-allowed' : 'pointer';
+    }
+
+    fields.forEach(field => {
+      field.element.addEventListener('input', updateButton);
+    });
+
+    button.addEventListener('click', async () => {
+      if (busy || button.disabled) return;
+
+      const settings = {};
+      for (const field of fields) {
+        settings[field.key] = field.element.value.trim();
+      }
+
+      busy = true;
+      updateButton();
+      status.textContent = 'Testing connection...';
+
+      try {
+        const csrf = await api('/api/integrations/csrf');
+
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf.csrf_token
+        };
+
+        await api('/api/integrations/' + config.service, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(settings)
+        });
+
+        const result = await api(
+          '/api/integrations/' + config.service + '/test',
+          {
+            method: 'POST',
+            headers: {'X-CSRF-Token': csrf.csrf_token}
+          }
+        );
+
+        status.textContent = (result.ok ? 'PASS — ' : 'FAIL — ') +
+          (result.message || (result.ok
+            ? 'Connection successful'
+            : 'Connection unsuccessful'));
+
+      } catch (error) {
+        status.textContent = 'FAIL — ' + error.message;
+      } finally {
+        busy = false;
+        updateButton();
+      }
+    });
+
+    updateButton();
+    console.log(name + ' connection handler registered');
+  }
+})();
+
+async function loadSchedulerSettings() {
+  try {
+    const response = await fetch('/api/integrations/scheduler/settings');
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    const settings = await response.json();
+    const start = document.getElementById('schedule-start');
+    const end = document.getElementById('schedule-end');
+    const timezone = document.getElementById('schedule-timezone');
+
+    if (start) start.value = settings.start_time;
+    if (end) end.value = settings.end_time;
+
+    if (timezone) {
+      if (![...timezone.options].some(o => o.value === settings.timezone)) {
+        timezone.add(new Option(settings.timezone, settings.timezone));
+      }
+      timezone.value = settings.timezone;
+    }
+
+    const toggle = document.querySelector(
+      'input[aria-label="Enable scheduler"]'
+    );
+    if (toggle) {
+      toggle.checked = settings.enabled === 'true';
+      toggleLabel(toggle);
+    }
+
+    console.log('Scheduler settings loaded: PASS');
+  } catch (error) {
+    console.error('Scheduler settings load: FAIL', error);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadSchedulerSettings);
+
+</script>
+
+
+<style>
+#settings-saved-banner {
+  background: #16803c;
+  color: white;
+  padding: 16px 0;
+  border-radius: 8px;
+  margin: 12px 16px 20px;
+  overflow: hidden;
+  font-family: Inter, sans-serif;
+  font-weight: 600;
+}
+#settings-saved-banner .scrolling-message {
+  display: block;
+  white-space: nowrap;
+  width: max-content;
+  animation: nexus-success-scroll 11.4s linear forwards;
+}
+@keyframes nexus-success-scroll {
+  from { transform: translateX(100vw); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #settings-saved-banner .scrolling-message {
+    animation: none;
+    width: auto;
+    text-align: center;
+  }
+}
+</style>
+<script>
+function showSettingsSavedBanner() {
+  document.getElementById('settings-saved-banner')?.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'settings-saved-banner';
+  banner.setAttribute('role', 'status');
+
+  const message = document.createElement('span');
+  message.className = 'scrolling-message';
+  for (let i = 0; i < 4; i++) {
+    const item = document.createElement('span');
+    item.textContent = 'Your settings have saved successfully';
+    item.style.marginRight = '80px';
+    message.appendChild(item);
+  }
+
+  banner.appendChild(message);
+  document.body.prepend(banner);
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  setTimeout(() => banner.remove(), 11400);
+}
+</script>
+
+
+<script>
+document.getElementById('discord-test-connection')?.addEventListener('click', async () => {
+  const button = document.getElementById('discord-test-connection');
+  const result = document.getElementById('discord-test-result');
+  const token = document.getElementById('discord-token').value.trim();
+  const guildId = document.getElementById('discord-guild-id').value.trim();
+
+  if (!token || (guildId.length < 17 || guildId.length > 20 || ![...guildId].every(c => c >= '0' && c <= '9'))) {
+    result.textContent = 'FAIL: Enter a bot token and valid Discord Server ID.';
+    result.style.color = '#ff9999';
+    return;
+  }
+
+  button.disabled = true;
+  result.textContent = 'Testing Discord connection...';
+  result.style.color = '';
+
+  try {
+    const csrfResponse = await fetch('/api/integrations/csrf', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    if (!csrfResponse.ok) throw new Error('Unable to obtain CSRF token');
+
+    const { csrf_token } = await csrfResponse.json();
+
+    const response = await fetch('/api/integrations/discord/connect-and-test', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf_token
+      },
+      body: JSON.stringify({ bot_token: token, guild_id: guildId })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        typeof data.detail === 'string' ? data.detail : 'Connection test failed'
+      );
+    }
+
+    const missing = Object.entries(data.permissions || {})
+      .filter(([, allowed]) => !allowed)
+      .map(([name]) => name);
+
+    if (data.success && data.notification_sent && data.channel_name === 'nexus-requests') {
+      result.textContent = `PASS: Test notification sent to #nexus-requests on ${data.server}.`;
+      result.style.color = '#79e5ad';
+      const modal = document.getElementById('discord-setup-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.style.display = 'flex';
+        document.getElementById('discord-activate').disabled = false;
+      }
+    } else {
+      result.textContent = `FAIL: Missing permissions: ${missing.join(', ')}`;
+      result.style.color = '#ff9999';
+    }
+  } catch (error) {
+    result.textContent = `FAIL: ${error.message}`;
+    result.style.color = '#ff9999';
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+
+
+
+<style>
+#discord-setup-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(3, 12, 25, .78);
+  backdrop-filter: blur(5px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#discord-setup-modal .discord-modal-bubble {
+  width: min(100%, 480px);
+  padding: 32px;
+  border-radius: 26px;
+  background: linear-gradient(145deg, #d9f2ff, #a9dcf7);
+  border: 1px solid #e5f7ff;
+  color: #102d45;
+  box-shadow: 0 24px 90px rgba(0,0,0,.5),
+              0 0 45px rgba(112,205,255,.2);
+  text-align: center;
+}
+#discord-modal-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.8rem;
+  margin: 0 0 14px;
+  color: #102d45;
+}
+#discord-setup-modal p,
+#discord-setup-modal button {
+  font-family: 'Inter', sans-serif;
+}
+#discord-setup-modal .discord-modal-action {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+#discord-activate {
+  background: #146a9d;
+  color: white;
+  border: 1px solid #146a9d;
+}
+#discord-activate:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+#discord-retry {
+  background: rgba(255,255,255,.45);
+  color: #164d70;
+  border: 1px solid rgba(22,77,112,.3);
+}
+#discord-modal-close {
+  background: transparent;
+  color: #315d78;
+  border: none;
+}
+</style>
+
+<div id="discord-setup-modal" role="dialog" aria-modal="true"
+     aria-labelledby="discord-modal-title" hidden>
+  <div class="discord-modal-bubble">
+    <h2 id="discord-modal-title">Check Your Discord!</h2>
+
+    <p>Look for our test notification in
+      <strong>#nexus-requests</strong>.
+    </p>
+
+    <p id="discord-modal-status" style="color:#17633e;font-weight:600">
+      Connection verified. Test notification sent.
+    </p>
+
+    <button type="button" id="discord-activate"
+      class="discord-modal-action" disabled>I Received It — Activate Nexus Bot</button>
+
+    <button type="button" id="discord-retry"
+      class="discord-modal-action">
+      Didn't Receive It? Retry
+    </button>
+
+    <button type="button" id="discord-modal-close"
+      class="discord-modal-action">
+      Close
+    </button>
+
+    <p style="font-size:.78rem;color:#42667c;margin-top:16px">
+      Activation will be enabled after secure setup is implemented.
+    </p>
+  </div>
+</div>
+
+
+<!-- nexus-discord-modal-buttons -->
+<script>
+(() => {
+  const modal = document.getElementById('discord-setup-modal');
+  const close = document.getElementById('discord-modal-close');
+  const retry = document.getElementById('discord-retry');
+  const connect = document.getElementById('discord-test-connection');
+
+  if (!modal || !close || !retry || !connect) {
+    console.warn('Nexus Discord modal controls missing');
+    return;
+  }
+
+  function hideModal() {
+    modal.style.display = 'none';
+    modal.hidden = true;
+  }
+
+  close.addEventListener('click', hideModal);
+
+  retry.addEventListener('click', () => {
+    hideModal();
+    connect.click();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) {
+      hideModal();
+    }
+  });
+})();
+</script>
+
+
+<!-- nexus-discord-activation-handler -->
+<script>
+(() => {
+  const button = document.getElementById('discord-activate');
+  const modal = document.getElementById('discord-setup-modal');
+
+  if (!button || !modal) return;
+
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+
+    const token = document.getElementById('discord-token').value.trim();
+    const guildId = document.getElementById('discord-guild-id').value.trim();
+
+    button.disabled = true;
+    button.textContent = 'Activating Nexus Bot...';
+
+    try {
+      const csrfResponse = await fetch('/api/integrations/csrf', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!csrfResponse.ok) throw new Error('Authentication failed');
+
+      const csrf = await csrfResponse.json();
+
+      const response = await fetch('/api/integrations/discord/activate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf.csrf_token
+        },
+        body: JSON.stringify({
+          bot_token: token,
+          guild_id: guildId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.detail || 'Activation failed');
+      }
+
+      button.textContent = 'Discord Configuration Saved';
+      const result = document.getElementById('discord-test-result');
+      if (result) {
+        result.textContent = 'PASS: Discord configuration securely saved.';
+        result.style.color = '#79e5ad';
+      }
+
+      modal.style.display = 'none';
+      modal.hidden = true;
+
+    } catch (error) {
+      button.textContent = 'Retry Activation';
+      button.disabled = false;
+      alert('Discord activation failed: ' + error.message);
+    }
+  });
+})();
+</script>
+
+</body></html>
+
+<style>
+.nexus-field-error {
+  border: 2px solid #ff5252 !important;
+  outline: 1px solid #ff5252;
+}
+</style>
+
+<script>
+function validateCoreIntegrations() {
+  const required = [
+    "seerr-url", "radarr-url", "sonarr-url",
+    "qbit-url", "qbit-user"
+  ];
+  let valid = true;
+
+  for (const id of required) {
+    const field = document.getElementById(id);
+    if (!field) {
+      valid = false;
+      continue;
+    }
+    const missing = !field.value.trim();
+    field.classList.toggle("nexus-field-error", missing);
+    field.setAttribute("aria-invalid", String(missing));
+    if (missing) valid = false;
+  }
+  return valid;
+}
+</script>
+
+<script>
+
+document.getElementById("global-save").addEventListener("click", async () => {
+  const integrations = {
+    seerr: {url:"seerr-url", api_key:"seerr-key"},
+    radarr: {url:"radarr-url", api_key:"radarr-key"},
+    sonarr: {url:"sonarr-url", api_key:"sonarr-key"},
+    qbittorrent: {
+      url:"qbit-url", username:"qbit-user", password:"qbit-pass"
+    }
+  };
+
+  try {
+    const results = await Promise.all(
+      Object.entries(integrations).map(([service, fields]) =>
+        validateSavedIntegration(service, fields)
+      )
+    );
+
+    if (results.some(result => !result)) {
+      alert("Complete the required fields highlighted in red.");
+      return;
+    }
+
+    const csrfResponse = await fetch('/api/integrations/csrf');
+    if (!csrfResponse.ok) throw new Error('CSRF request failed');
+    const csrf = await csrfResponse.json();
+
+    const settings = collectCoreSettings();
+    settings.scheduler = collectSchedulerSettings();
+
+    const response = await fetch('/api/integrations/save-all', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf.csrf_token
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (!response.ok) throw new Error('Global Save failed (HTTP ' + response.status + ')');
+    showSettingsSavedBanner();
+  } catch (error) {
+    alert("Unable to validate settings: " + error.message);
+  }
+});
+</script>
+
+<script>
+async function validateSavedIntegration(service, fields) {
+  const response = await fetch('/api/integrations/' + service);
+  if (!response.ok) throw new Error('Cannot verify ' + service);
+  const status = await response.json();
+  const saved = status.configured_fields || [];
+  let valid = true;
+
+  for (const [key, id] of Object.entries(fields)) {
+    const field = document.getElementById(id);
+    const complete = field &&
+      (field.value.trim() || saved.includes(key));
+    if (field) {
+      field.classList.toggle('nexus-field-error', !complete);
+      field.setAttribute('aria-invalid', String(!complete));
+    }
+    if (!complete) valid = false;
+  }
+  return valid;
+}
+</script>
+
+<script>
+function collectSchedulerSettings() {
+  return {
+    enabled: document.querySelector(
+      'input[aria-label="Enable scheduler"]'
+    ).checked ? 'true' : 'false',
+    start_time: document.getElementById('schedule-start').value,
+    end_time: document.getElementById('schedule-end').value,
+    timezone: document.getElementById('schedule-timezone').value
+  };
+}
+</script>
+
+<script>
+function collectCoreSettings() {
+  const mapping = {
+    seerr: {url:'seerr-url', api_key:'seerr-key'},
+    radarr: {url:'radarr-url', api_key:'radarr-key'},
+    sonarr: {url:'sonarr-url', api_key:'sonarr-key'},
+    qbittorrent: {
+      url:'qbit-url',
+      username:'qbit-user',
+      password:'qbit-pass'
+    }
+  };
+
+  const result = {};
+  for (const [service, fields] of Object.entries(mapping)) {
+    const settings = {};
+    for (const [key, id] of Object.entries(fields)) {
+      const value = document.getElementById(id)?.value.trim();
+      if (value) settings[key] = value;
+    }
+    result[service] = settings;
+  }
+  return result;
+}
+</script>
+
+<script>
+async function saveIntegrationSettings(service, settings, csrf) {
+  if (!Object.keys(settings).length) return;
+
+  const response = await fetch('/api/integrations/' + service, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrf
+    },
+    body: JSON.stringify(settings)
+  });
+
+  if (!response.ok) {
+    throw new Error(service + ' save failed (HTTP ' +
+      response.status + ')');
+  }
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const integrations = {
+    seerr: {url:'seerr-url', api_key:'seerr-key'},
+    radarr: {url:'radarr-url', api_key:'radarr-key'},
+    sonarr: {url:'sonarr-url', api_key:'sonarr-key'},
+    qbittorrent: {
+      url:'qbit-url',
+      username:'qbit-user',
+      password:'qbit-pass'
+    }
+  };
+
+  for (const [service, fields] of Object.entries(integrations)) {
+    try {
+      const response = await fetch('/api/integrations/' + service, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const values = data.display_values || {};
+      const configured = data.configured_fields || [];
+
+      for (const [key, id] of Object.entries(fields)) {
+        const input = document.getElementById(id);
+        if (!input) continue;
+
+        if (key === 'url' || key === 'username') {
+          if (!input.value && values[key]) {
+            input.value = values[key];
+          }
+        } else if (configured.includes(key)) {
+          if (!input.dataset.savedCredentialHint) {
+            const hint = document.createElement('p');
+            hint.className = 'hint';
+            hint.textContent = 'Saved credential configured';
+            input.insertAdjacentElement('afterend', hint);
+            input.dataset.savedCredentialHint = 'true';
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to load saved settings for', service);
+    }
+  }
+});
+</script>

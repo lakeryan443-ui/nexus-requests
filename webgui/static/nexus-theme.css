@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@700&display=swap');
+body {
+    background:
+        linear-gradient(rgba(3, 13, 35, 0.28), rgba(3, 13, 35, 0.45)),
+        url('/static/nexus-background.webp') center center / cover fixed no-repeat;
+    color: #ffffff;
+    min-height: 100vh;
+}
+
+header, .header {
+    background: linear-gradient(120deg, rgba(6, 25, 57, 0.92), rgba(12, 54, 106, 0.88));
+    color: #ffffff;
+}
+
+.card, .panel {
+    background: linear-gradient(135deg, rgba(12, 42, 85, 0.90), rgba(8, 30, 65, 0.86));
+    border: 1px solid rgba(81, 207, 255, 0.20);
+    color: #ffffff;
+    backdrop-filter: blur(12px);
+}
+
+.nexus-logo {
+    display: block;
+    width: min(320px, 80vw);
+    height: auto;
+    object-fit: contain;
+}
+
+/* Reduce NR logo size by 25% */
+.nexus-logo {
+    width: min(240px, 60vw);
+    height: auto;
+}
+
+/* Nexus Requests typography */
+
+body {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+}
+
+h1, h2, h3, h4, h5, h6,
+.card h2, .card h3,
+.panel h2, .panel h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+}
+
+button, input, select, textarea {
+    font-family: 'Inter', sans-serif;
+}
