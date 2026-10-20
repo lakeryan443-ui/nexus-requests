@@ -63,15 +63,37 @@ async def approve_tv_priority(request_id, request, *, session=None):
     try:
         base = os.environ["SEERR_URL"].rstrip("/")
         headers = {"X-Api-Key": os.environ["SEERR_API_KEY"]}
-        url = f"{base}/api/v1/request/{request_id}/approve"
+        request_url = f"{base}/api/v1/request/{request_id}"
+
+        async def send_approval(client):
+            async with client.post(f"{request_url}/approve") as response:
+                response.raise_for_status()
+
+            async with client.get(request_url) as response:
+                response.raise_for_status()
+                confirmed = await response.json()
+
+            if not isinstance(confirmed, dict):
+                raise TVPriorityError("Invalid approval confirmation")
+
+            media = confirmed.get("media")
+
+            if (
+                str(confirmed.get("id")) != str(request_id)
+                or confirmed.get("status") != 2
+                or confirmed.get("type") != "tv"
+                or not isinstance(media, dict)
+                or media.get("tmdbId") != prepared["media_id"]
+            ):
+                raise TVPriorityError(
+                    "Seerr did not confirm approval of the intended TV request"
+                )
 
         if session is None:
             async with aiohttp.ClientSession(headers=headers) as client:
-                async with client.post(url) as response:
-                    response.raise_for_status()
+                await send_approval(client)
         else:
-            async with session.post(url) as response:
-                response.raise_for_status()
+            await send_approval(session)
 
     except Exception as exc:
         raise TVPriorityError(

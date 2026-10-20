@@ -15,6 +15,45 @@ from qbt_verify import verify_torrent
 logger = logging.getLogger("nexus.priority")
 
 
+async def update_discord_priority_status(discord_client, job):
+    """Update the original request card without affecting downloads."""
+    if discord_client is None:
+        return
+
+    channel_id = job.get("discord_channel_id")
+    message_id = job.get("discord_message_id")
+
+    if not channel_id or not message_id:
+        return
+
+    try:
+        import discord
+
+        await discord_client.wait_until_ready()
+
+        channel = await discord_client.fetch_channel(int(channel_id))
+        message = await channel.fetch_message(int(message_id))
+
+        if not message.embeds:
+            logger.warning(
+                "Request %s: Discord card has no embed",
+                job.get("request_id"),
+            )
+            return
+
+        embed = message.embeds[0].copy()
+        embed.description = "Priority Applied — Download Requested"
+        embed.color = discord.Color.green()
+
+        await message.edit(embed=embed)
+
+    except Exception:
+        logger.exception(
+            "Request %s: Discord status update failed",
+            job.get("request_id"),
+        )
+
+
 def torrent_category(media_type):
     return {"movie": "radarr", "tv": "sonarr"}.get(media_type)
 
@@ -33,7 +72,7 @@ async def find_job_torrent(job):
     raise ValueError("Unsupported media type")
 
 
-async def check_priority_jobs(raise_errors=False, *, execute=False, request_ids=None):
+async def check_priority_jobs(raise_errors=False, *, execute=False, request_ids=None, discord_client=None):
     """Inspect approved waiting jobs; optionally tag/start an exact torrent.
 
     Does not approve Seerr requests or monitor completed downloads.
@@ -65,20 +104,34 @@ async def check_priority_jobs(raise_errors=False, *, execute=False, request_ids=
                 raise ValueError("Claimed job hash mismatch")
             try:
                 await prioritize_torrent(torrent_hash, expected_category=category)
-                update_job(int(key), expected_status="processing", priority_started=True,
-                           priority_started_at=datetime.now(timezone.utc).isoformat())
-                logger.info("Job %s: priority started", key)
+                updated_job = update_job(
+                    int(key),
+                    expected_status="processing",
+                    priority_started=True,
+                    priority_started_at=datetime.now(timezone.utc).isoformat(),
+                )
+                completed_job = transition_job(
+                    int(key),
+                    "completed",
+                    priority_started=True,
+                )
+                logger.info("Job %s: priority applied; job completed", key)
             except Exception:
                 transition_job(int(key), "failed", manual_review_required=True,
                                execution_error="Priority execution failed; inspect qBittorrent")
                 raise
+
+            await update_discord_priority_status(
+                discord_client,
+                completed_job,
+            )
         except Exception:
             logger.exception("Job %s: priority processing failed", key)
             if raise_errors:
                 raise
 
 
-async def priority_worker_loop(interval=30, *, execute=False, request_ids=None):
+async def priority_worker_loop(interval=30, *, execute=False, request_ids=None, discord_client=None):
     while True:
-        await check_priority_jobs(execute=execute, request_ids=request_ids)
+        await check_priority_jobs(execute=execute, request_ids=request_ids, discord_client=discord_client)
         await asyncio.sleep(interval)

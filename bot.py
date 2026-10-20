@@ -191,10 +191,34 @@ class RequestView(discord.ui.View):
                         f"Unsupported Seerr media type: {media_type!r}"
                     )
 
+            # Associate this priority job with its original Discord card.
+            # Tracking failures must not undo or misreport Seerr approval.
+            try:
+                from priority_store import update_job
+
+                update_job(
+                    self.request_id,
+                    discord_channel_id=interaction.channel_id,
+                    discord_message_id=interaction.message.id,
+                )
+            except Exception:
+                logging.exception(
+                    "Request %s: Discord card tracking failed",
+                    self.request_id,
+                )
+
             for item in self.children:
                 item.disabled = True
 
-            await interaction.message.edit(view=self)
+            # Update the original approval card with persistent status.
+            if interaction.message.embeds:
+                embed = interaction.message.embeds[0].copy()
+                embed.description = "Approved — Waiting for Download"
+                embed.color = discord.Color.blue()
+                await interaction.message.edit(embed=embed, view=self)
+            else:
+                await interaction.message.edit(view=self)
+
             await interaction.followup.send(
                 f"Request #{self.request_id}: Seerr approval confirmed "
                 "and priority intent recorded. "
@@ -496,6 +520,7 @@ class NexusBot(discord.Client):
         self.priority_task = asyncio.create_task(
             priority_worker_loop(
                 execute=RequestView.priority_enabled,
+                discord_client=self,
             ),
             name="nexus-priority-worker",
         )
