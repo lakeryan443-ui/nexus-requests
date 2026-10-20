@@ -13,10 +13,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
 )
 
-TOKEN = os.environ["DISCORD_TOKEN"]
+from discord_config_adapter import load_discord_config
+
+discord_config = load_discord_config()
+
+TOKEN = discord_config["token"]
 SEERR_URL = os.environ["SEERR_URL"].rstrip("/")
 SEERR_KEY = os.environ["SEERR_API_KEY"]
-CHANNEL_ID = int(os.environ["APPROVALS_CHANNEL_ID"])
+CHANNEL_ID = discord_config["channel_id"]
 ADMIN_IDS = {
     int(value.strip())
     for value in os.environ["ADMIN_DISCORD_IDS"].split(",")
