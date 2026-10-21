@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · Nexus Requests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(125deg,rgba(2,12,32,.43),rgba(2,19,46,.38)),url('/static/nexus-background.webp') center/cover fixed no-repeat,#071d39;color:#e5edf7;font:400 14px/1.7 Inter,sans-serif}
+header{padding:20px clamp(18px,4vw,56px);border-bottom:1px solid #274967;background:#0b223c}
+header img{width:210px;max-width:100%;height:auto}
+main{max-width:850px;margin:55px auto;padding:0 22px 60px}
+a{color:#9bdcff;text-decoration:none}
+a:hover{text-decoration:underline}
+.back{display:inline-flex;margin-bottom:24px}
+h1,h2{font-family:"Space Grotesk",sans-serif}
+h1{font-size:36px;margin:0 0 10px}
+h2{font-size:19px;margin:0 0 8px}
+.subtitle{color:#a9c3dc;margin:0 0 30px}
+.panel{background:#102a45;border:1px solid #315775;border-radius:17px;padding:30px;box-shadow:0 10px 30px #0002}
+section+section{border-top:1px solid #315775;margin-top:24px;padding-top:24px}
+p{color:#c0d4e6;margin:0}
+@media(max-width:600px){main{margin-top:28px}.panel{padding:22px}h1{font-size:29px}}
+</style>
+</head>
+<body>
+<header>
+<img src="/static/nexus-requests-logo-v3.png" alt="Nexus Requests">
+</header>
+<main>
+<a class="back" href="/">← Back to Dashboard</a>
+<h1>About Nexus Requests</h1>
+<p class="subtitle">Media request management, scheduling, and priority downloads.</p>
+<div class="panel">
+<section>
+<h2>What is Nexus Requests?</h2>
+<p>Nexus Requests provides a central interface for managing media requests, scheduling downloads, and controlling request approvals through Discord.</p>
+</section>
+<section>
+<h2>Connected services</h2>
+<p>Seerr, Radarr, Sonarr, qBittorrent, and Discord work together to manage media requests and downloads.</p>
+<p style="margin-top:12px">Future versions of Nexus Requests are planned to support additional download clients.</p>
+</section>
+<section>
+<h2>Download scheduling</h2>
+<p>Configure a download window to control when regular downloads run, helping reduce network congestion during busy hours.</p>
+</section>
+<section>
+<h2>Priority downloads</h2>
+<p>Approve &amp; Download Now allows approved requests to bypass the regular download schedule.</p>
+</section>
+</div>
+</main>
+</body>
+</html>

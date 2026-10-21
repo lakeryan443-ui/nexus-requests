@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · Nexus Requests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(125deg,rgba(2,12,32,.43),rgba(2,19,46,.38)),
+    url('/static/nexus-background.webp') center/cover fixed no-repeat,#071d39;
+  color:#e5edf7;
+  font:400 14px/1.7 Inter,sans-serif
+}
+header{
+  padding:20px clamp(18px,4vw,56px);
+  border-bottom:1px solid rgba(111,195,255,.22);
+  background:rgba(3,18,43,.64);
+  backdrop-filter:blur(14px)
+}
+header img{width:210px;max-width:100%;height:auto}
+main{max-width:850px;margin:55px auto;padding:0 22px 60px}
+a{color:#9bdcff;text-decoration:none}
+a:hover{text-decoration:underline}
+.back{display:inline-flex;margin-bottom:24px}
+h1,h2{font-family:"Space Grotesk",sans-serif}
+h1{font-size:36px;margin:0 0 10px}
+h2{font-size:19px;margin:0 0 12px}
+.subtitle{color:#a9c3dc;margin:0 0 30px}
+.panel{
+  background:rgba(8,31,66,.88);
+  border:1px solid rgba(111,195,255,.22);
+  border-radius:17px;
+  padding:30px;
+  box-shadow:0 10px 30px #0002;
+  backdrop-filter:blur(13px)
+}
+p{color:#c0d4e6;margin:0}
+@media(max-width:600px){
+  main{margin-top:28px}
+  .panel{padding:22px}
+  h1{font-size:29px}
+}
+</style>
+</head>
+<body>
+<header>
+<img src="/static/nexus-requests-logo-v3.png" alt="Nexus Requests">
+</header>
+<main>
+<a class="back" href="/">← Back to Dashboard</a>
+<h1>Frequently Asked Questions</h1>
+
+
+<div class="panel">
+  <h2>How do I change my server address and API key if I already saved info previously?</h2>
+  <p>Nexus Requests remembers your old info for convenience. To change, just type in the new info in the fields and hit save.</p>
+</div>
+
+</main>
+</body>
+</html>

@@ -93,4 +93,4 @@ def get_admin_session_version(username):
     if row is None:
         return None
 
-    return hashlib.sha256(row[0].encode()).hexdigest()
+    return hashlib.sha256((username.casefold() + "\0" + row[0]).encode()).hexdigest()

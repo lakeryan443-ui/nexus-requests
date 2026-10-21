@@ -336,6 +336,16 @@ async def integration_discord_activate(request: Request):
             'channel_id': channel_id,
         })
 
+        from bot_service import restart_bot, BotServiceError
+
+        try:
+            await asyncio.to_thread(restart_bot)
+        except BotServiceError:
+            raise HTTPException(
+                status_code=503,
+                detail='Discord settings saved, but the bot could not be restarted'
+            )
+
         return JSONResponse({
             'success': True,
             'configured': True,
@@ -344,5 +354,7 @@ async def integration_discord_activate(request: Request):
 
     except (ValueError, KeyError, TypeError) as exc:
         raise HTTPException(status_code=422, detail='Invalid Discord activation configuration')
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=502, detail='Discord activation failed')

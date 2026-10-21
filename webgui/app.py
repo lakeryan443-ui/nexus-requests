@@ -1,5 +1,6 @@
 from connection_tests import router as connection_test_router
 from integration_api import router as integration_router
+from account_api import router as account_router
 from fastapi.staticfiles import StaticFiles
 from auth_routes import router, current_admin
 from pathlib import Path
@@ -21,6 +22,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 app.include_router(router)
 app.include_router(integration_router)
+app.include_router(account_router)
 app.include_router(connection_test_router)
 
 @app.middleware("http")
@@ -71,11 +73,45 @@ async def api_status():
     return {"discord_bot": get_bot_status()}
 
 
-@app.get("/", response_class=HTMLResponse)
-async def dashboard():
-    from pathlib import Path
-    template = Path(__file__).parent / "templates" / "dashboard-v2.html"
+
+
+
+
+@app.get("/troubleshooting", response_class=HTMLResponse)
+async def troubleshooting_page(request: Request):
+    if not current_admin(request):
+        return RedirectResponse("/login", status_code=303)
+
+    template = Path(__file__).parent / "templates" / "troubleshooting.html"
     return HTMLResponse(template.read_text(encoding="utf-8"))
+
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    if not current_admin(request):
+        return RedirectResponse("/login", status_code=303)
+
+    template = Path(__file__).parent / "templates" / "about.html"
+    return HTMLResponse(template.read_text(encoding="utf-8"))
+
+@app.get("/", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    from pathlib import Path
+    from html import escape
+
+    template = Path(__file__).parent / "templates" / "dashboard-v2.html"
+    username = current_admin(request)
+
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    html = template.read_text(encoding="utf-8")
+    html = html.replace(
+        '<span>Admin</span>',
+        '<span>' + escape(username) + '</span>',
+        1,
+    )
+
+    return HTMLResponse(html)
 
 
 async def dashboard():
@@ -153,3 +189,19 @@ async def dashboard():
 @app.get("/health")
 async def health():
     return {"status": "ok", "application": "nexus-requests-webgui"}
+
+
+@app.get("/account", response_class=HTMLResponse)
+async def account_page(request: Request):
+    from html import escape
+
+    username = current_admin(request)
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    template = APP_DIR / "templates" / "account.html"
+    html = template.read_text(encoding="utf-8")
+    return HTMLResponse(
+        html.replace("__ACCOUNT_USERNAME__", escape(username), 1),
+        headers={"Cache-Control": "no-store"},
+    )
