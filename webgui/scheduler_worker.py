@@ -19,17 +19,62 @@ CATEGORIES = {"radarr", "sonarr"}
 PRIORITY_TAG = "nexus-priority"
 
 
-def in_window(settings):
+def in_window(settings, now=None):
     zone = ZoneInfo(settings["timezone"])
-    now = datetime.now(zone).time().replace(tzinfo=None)
-    start = time.fromisoformat(settings["start_time"])
-    end = time.fromisoformat(settings["end_time"])
+    current = now.astimezone(zone) if now is not None else datetime.now(zone)
+    clock = current.time().replace(tzinfo=None)
 
-    if start == end:
-        return False
-    if start < end:
-        return start <= now < end
-    return now >= start or now < end
+    def contains(start_text, end_text):
+        start = time.fromisoformat(start_text)
+        end = time.fromisoformat(end_text)
+        if start == end:
+            return False
+        if start < end:
+            return start <= clock < end
+        return clock >= start
+
+    if str(settings.get("advanced_enabled", "false")).lower() != "true":
+        start = time.fromisoformat(settings["start_time"])
+        end = time.fromisoformat(settings["end_time"])
+        if start == end:
+            return False
+        if start < end:
+            return start <= clock < end
+        return clock >= start or clock < end
+
+    import json
+    from datetime import timedelta
+
+    days = json.loads(settings.get("advanced_days") or "{}")
+    if not isinstance(days, dict):
+        raise ValueError("Advanced schedule must be an object")
+
+    def get_day(index):
+        key = ("monday", "tuesday", "wednesday", "thursday",
+               "friday", "saturday", "sunday")[index]
+        day = days[key]
+        if not isinstance(day, dict) or not isinstance(day.get("enabled"), bool):
+            raise ValueError(f"Invalid advanced schedule for {key}")
+        if day["enabled"]:
+            time.fromisoformat(day["start"])
+            time.fromisoformat(day["end"])
+        return day
+
+    today = get_day(current.weekday())
+    if not today["enabled"]:
+        return True
+
+    if contains(today["start"], today["end"]):
+        return True
+
+    previous = get_day((current - timedelta(days=1)).weekday())
+    if previous["enabled"]:
+        start = time.fromisoformat(previous["start"])
+        end = time.fromisoformat(previous["end"])
+        if start > end and clock < end:
+            return True
+
+    return False
 
 
 async def run_once():
