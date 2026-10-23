@@ -1,12 +1,13 @@
 import asyncio
 import os
 import logging
+from pathlib import Path
 
 import aiohttp
 import discord
 from dotenv import load_dotenv
 
-load_dotenv("/opt/nexus-requests-rebuild/.env")
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,8 +19,11 @@ from discord_config_adapter import load_discord_config
 discord_config = load_discord_config()
 
 TOKEN = discord_config["token"]
-SEERR_URL = os.environ["SEERR_URL"].rstrip("/")
-SEERR_KEY = os.environ["SEERR_API_KEY"]
+from seerr_config_adapter import load_seerr_config
+
+seerr_config = load_seerr_config()
+SEERR_URL = seerr_config["url"]
+SEERR_KEY = seerr_config["api_key"]
 CHANNEL_ID = discord_config["channel_id"]
 ADMIN_IDS = {
     int(value.strip())
@@ -35,9 +39,19 @@ class RequestView(discord.ui.View):
         super().__init__(timeout=None)
         self.request_id = request_id
         self.processing = False
-        self.priority.disabled = not (
-            self.priority_enabled is True and media_type in ("movie", "tv")
+        from webgui.config_store import ConfigStore
+
+        scheduler = ConfigStore().load_internal("scheduler")
+        scheduler_enabled = (
+            str(scheduler.get("enabled", "true")).lower() == "true"
         )
+
+        if not scheduler_enabled:
+            self.remove_item(self.priority)
+        else:
+            self.priority.disabled = not (
+                self.priority_enabled is True and media_type in ("movie", "tv")
+            )
 
     async def change_request(self, interaction, action):
         if interaction.user.id not in ADMIN_IDS:
@@ -495,7 +509,7 @@ class NexusBot(discord.Client):
         super().__init__(**kwargs)
         self.monitor_task = None
         self.priority_task = None
-        self.posted_file = "/opt/nexus-requests-rebuild/istate/posted_requests.json"
+        self.posted_file = str(Path(__file__).resolve().parent / "istate" / "posted_requests.json")
         self.posted_ids = set()
 
         import json

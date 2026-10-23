@@ -14,7 +14,7 @@ def load_discord_config(webgui_dir=None):
 
     directory = Path(
         webgui_dir
-        or os.environ.get("NEXUS_WEBGUI_DIR", "/opt/nexus-requests-webgui")
+        or os.environ.get("NEXUS_WEBGUI_DIR", str(Path(__file__).resolve().parent / "webgui"))
     )
 
     if directory.is_dir():

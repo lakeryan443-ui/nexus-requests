@@ -56,7 +56,7 @@ APP_DIR = Path(__file__).resolve().parent
 def get_bot_status():
     try:
         result = subprocess.run(
-            ["systemctl", "is-active", "nexus-requests-rebuild.service"],
+            ["systemctl", "is-active", "nexus-requests-bot.service"],
             capture_output=True,
             text=True,
             timeout=3,
@@ -66,7 +66,7 @@ def get_bot_status():
         return "Unknown"
 
 
-app.mount("/static", StaticFiles(directory="/opt/nexus-requests-webgui/static"), name="static")
+app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 @app.get("/api/status")
 async def api_status():

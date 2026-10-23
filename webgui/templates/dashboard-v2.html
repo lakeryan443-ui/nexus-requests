@@ -23,6 +23,24 @@ header {
   z-index: 10001;
 }
 </style>
+
+<style>
+#scheduler-active-notice[hidden]{display:none}
+#scheduler-active-notice{
+  flex:1;
+  min-width:0;
+  margin:0;
+  color:#f5b84b;
+  font-size:12px;
+  line-height:1.55;
+  text-align:center;
+}
+#scheduler-active-notice span{display:block}
+@media(max-width:900px){
+  .panel-heading:has(#scheduler-active-notice){flex-wrap:wrap}
+  #scheduler-active-notice{flex-basis:100%;order:3}
+}
+</style>
 </head>
 <body>
 <header><img src="/static/nexus-requests-logo-v3.png" alt="Nexus Requests logo"><span class="edition">Manage Media Requests · Download Scheduler · Priority Downloads</span>
@@ -74,6 +92,11 @@ header {
       <h2>Download Scheduler</h2>
       <p class="desc">Set your nightly download window.</p>
     </div>
+    <p id="scheduler-active-notice" hidden>
+      <span>Scheduler Active: Existing downloads may pause outside your configured window.</span>
+      <span>Downloads will automatically resume during the next scheduled download window.</span>
+      <span>These changes may take effect immediately after enabling the scheduler.</span>
+    </p>
     <label class="toggle">
       <input type="checkbox" aria-label="Enable scheduler"
              onchange="toggleLabel(this)">
@@ -435,7 +458,7 @@ document.getElementById("nexus-footer-year").textContent =
 })();
 </script>
 
-<script>function toggleLabel(input){const label=input.closest('.toggle').querySelector('.toggle-word');label.textContent=input.checked?'On':'Off'}</script>
+<script>function toggleLabel(input){const label=input.closest('.toggle').querySelector('.toggle-word');label.textContent=input.checked?'On':'Off';const notice=document.getElementById('scheduler-active-notice');if(notice)notice.hidden=!input.checked}</script>
 
 <script>
 (function () {

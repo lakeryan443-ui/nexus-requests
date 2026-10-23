@@ -77,8 +77,11 @@ async def approve_movie_priority(request_id, request, *, session=None):
     prepared = prepare_movie_priority(request_id, request)
     expected_tmdb_id = prepared["media_id"]
 
-    base = os.environ["SEERR_URL"].rstrip("/")
-    headers = {"X-Api-Key": os.environ["SEERR_API_KEY"]}
+    from seerr_config_adapter import load_seerr_config
+
+    seerr = load_seerr_config()
+    base = seerr["url"]
+    headers = {"X-Api-Key": seerr["api_key"]}
 
     async def send_approval(client):
         request_url = f"{base}/api/v1/request/{request_id}"

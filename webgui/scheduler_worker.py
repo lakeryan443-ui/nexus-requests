@@ -79,7 +79,13 @@ def in_window(settings, now=None):
 
 async def run_once():
     store = ConfigStore()
-    settings = store.load_internal("scheduler")
+    settings = {
+        "enabled": "true",
+        "start_time": "02:00",
+        "end_time": "06:00",
+        "timezone": "America/New_York",
+        **store.load_internal("scheduler"),
+    }
 
     if str(settings.get("enabled", "")).lower() != "true":
         log.info("Scheduler disabled; no action")

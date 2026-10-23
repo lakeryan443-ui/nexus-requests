@@ -2,7 +2,7 @@
 
 import subprocess
 
-BOT_SERVICE = "nexus-requests-rebuild.service"
+BOT_SERVICE = "nexus-requests-bot.service"
 
 
 class BotServiceError(RuntimeError):
@@ -24,5 +24,19 @@ def restart_bot():
 
     if result.returncode != 0:
         raise BotServiceError("Bot restart failed")
+
+    try:
+        result = subprocess.run(
+            ["systemctl", "enable", BOT_SERVICE],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BotServiceError("Bot service could not be enabled") from exc
+
+    if result.returncode != 0:
+        raise BotServiceError("Bot service could not be enabled")
 
     return True

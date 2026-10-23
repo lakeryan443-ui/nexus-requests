@@ -61,8 +61,11 @@ async def approve_tv_priority(request_id, request, *, session=None):
         )
 
     try:
-        base = os.environ["SEERR_URL"].rstrip("/")
-        headers = {"X-Api-Key": os.environ["SEERR_API_KEY"]}
+        from seerr_config_adapter import load_seerr_config
+
+        seerr = load_seerr_config()
+        base = seerr["url"]
+        headers = {"X-Api-Key": seerr["api_key"]}
         request_url = f"{base}/api/v1/request/{request_id}"
 
         async def send_approval(client):

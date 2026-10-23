@@ -55,6 +55,7 @@ async def _verify(token, guild_id):
             "connected": True,
             "bot": bot["username"],
             "server": guild["name"],
+            "owner_id": str(guild["owner_id"]),
             "permissions": checks,
             "ready": all(checks.values()),
         }
@@ -118,7 +119,9 @@ def ensure_notification_channel(token, guild_id):
     if not verification["ready"]:
         raise ValueError("Discord permissions verification failed")
 
-    return asyncio.run(_ensure_notification_channel(token, str(guild_id)))
+    result = asyncio.run(_ensure_notification_channel(token, str(guild_id)))
+    result["owner_id"] = verification["owner_id"]
+    return result
 
 
 async def _send_test_notification(token, channel_id):

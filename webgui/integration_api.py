@@ -280,7 +280,7 @@ async def integration_save(service: str, request: Request):
 async def scheduler_settings(request: Request):
     _session_fingerprint(request)
     defaults = {
-        'enabled': 'false',
+        'enabled': 'true',
         'start_time': '02:00',
         'end_time': '06:00',
         'timezone': 'America/New_York',
@@ -334,6 +334,7 @@ async def integration_discord_activate(request: Request):
             'bot_token': token,
             'guild_id': guild_id,
             'channel_id': channel_id,
+            'owner_id': str(result['owner_id']),
         })
 
         from bot_service import restart_bot, BotServiceError
