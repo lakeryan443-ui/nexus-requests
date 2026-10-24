@@ -98,11 +98,11 @@ PASSWORD = '''
 NEW_PASSWORD = '''
 <label>Password
 <input type="password" name="password"
-       autocomplete="new-password" minlength="12" required>
+       autocomplete="new-password" minlength="8" maxlength="128" required>
 </label>
 <label>Confirm password
 <input type="password" name="confirm_password"
-       autocomplete="new-password" minlength="12" required>
+       autocomplete="new-password" minlength="8" maxlength="128" required>
 </label>
 '''
 
@@ -112,7 +112,11 @@ def setup_page(error=""):
         "Setup",
         "Welcome to Nexus Requests",
         "Create your administrator account to get started.",
-        USERNAME + NEW_PASSWORD,
+        """<label>Setup Token
+<input name="setup_token" type="password"
+       autocomplete="off" required>
+</label>
+""" + USERNAME + NEW_PASSWORD,
         "Create Administrator",
         error,
     )

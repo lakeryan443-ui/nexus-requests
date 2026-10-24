@@ -201,6 +201,38 @@ EOF
     log "Systemd services installed."
 }
 
+
+generate_setup_token() {
+    local data_dir="$INSTALL_DIR/webgui/data"
+    local token_file="$data_dir/setup.token"
+
+    install -d -m 0700 "$data_dir"
+
+    [[ ! -e "$token_file" ]] ||
+        fail "Setup token already exists."
+
+    SETUP_TOKEN="$(/usr/bin/python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+
+    (umask 077; printf '%s\n' "$SETUP_TOKEN" > "$token_file")
+    chmod 0600 "$token_file"
+}
+
+
+generate_setup_token() {
+    local data_dir="$INSTALL_DIR/webgui/data"
+    local token_file="$data_dir/setup.token"
+
+    install -d -m 0700 "$data_dir"
+
+    [[ ! -e "$token_file" ]] ||
+        fail "Setup token already exists."
+
+    SETUP_TOKEN="$(/usr/bin/python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+
+    (umask 077; printf '%s\n' "$SETUP_TOKEN" > "$token_file")
+    chmod 0600 "$token_file"
+}
+
 main() {
     log "Preparing $APP_NAME installation"
 
@@ -217,6 +249,8 @@ main() {
     download_release "$tag"
     install_dependencies
     install_services
+    generate_setup_token
+    generate_setup_token
 
     systemctl enable --now nexus-requests-webgui.service ||
         fail "Could not start Nexus Requests WebGUI."
@@ -226,7 +260,16 @@ main() {
 
     log "Nexus Requests $tag installed successfully."
     log "Open http://SERVER-IP:8081 to complete setup."
-    log "Discord bot and scheduler remain inactive until configured."
+    printf '\n'
+    log "INITIAL ADMINISTRATOR SETUP"
+    log "----------------------------------------"
+    log "Setup Token: %s" "$SETUP_TOKEN"
+    log "Enter this token in the WebGUI setup form."
+    log "To retrieve it later, run:"
+    log "cat $INSTALL_DIR/webgui/data/setup.token"
+    log "----------------------------------------"
+    log "Discord bot remains inactive until configured."
+    log "Scheduler service is running; scheduling behavior depends on configuration."
 }
 
 main "$@"

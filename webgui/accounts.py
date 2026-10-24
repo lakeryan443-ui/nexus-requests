@@ -46,8 +46,8 @@ def create_admin(username, password):
     ):
         raise ValueError("Username contains invalid characters")
 
-    if len(password) < 12:
-        raise ValueError("Password must be at least 12 characters")
+    if not 8 <= len(password) <= 128:
+        raise ValueError("Password must be 8-128 characters")
 
     password_hash = hash_password(password)
 

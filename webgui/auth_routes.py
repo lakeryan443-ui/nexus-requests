@@ -7,6 +7,7 @@ from accounts import admin_exists, authenticate, create_admin, get_admin_session
 from auth import create_session, verify_session
 from login_pages import login_page, setup_page
 from login_security import is_blocked, record_failure, clear_failures
+from setup_token import verify_setup_token, invalidate_setup_token
 
 router = APIRouter()
 
@@ -46,24 +47,33 @@ async def setup_get(request: Request):
     if admin_exists():
         return RedirectResponse("/login", status_code=303)
 
-    if not is_localhost(request):
-        return HTMLResponse(
-            "Initial administrator setup must be completed locally.",
-            status_code=403,
-        )
-
     return HTMLResponse(setup_page())
 
 
 @router.post("/setup")
 async def setup_post(request: Request):
-    if not is_localhost(request):
-        return HTMLResponse("Forbidden", status_code=403)
-
     if admin_exists():
         return RedirectResponse("/login", status_code=303)
 
     form = await request.form()
+
+    if not is_localhost(request):
+        ip = request.client.host if request.client else "unknown"
+
+        if is_blocked(ip):
+            return HTMLResponse(
+                setup_page("Too many failed attempts. Try again later."),
+                status_code=429,
+            )
+
+        token = str(form.get("setup_token", ""))
+        if not verify_setup_token(token):
+            record_failure(ip)
+            return HTMLResponse(
+                setup_page("Invalid setup token."),
+                status_code=403,
+            )
+
     username = str(form.get("username", ""))
     password = str(form.get("password", ""))
     confirmation = str(form.get("confirm_password", ""))
@@ -76,6 +86,7 @@ async def setup_post(request: Request):
 
     try:
         create_admin(username, password)
+        invalidate_setup_token()
     except ValueError as exc:
         return HTMLResponse(
             setup_page(str(exc)),
