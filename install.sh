@@ -66,7 +66,7 @@ download_release() {
     local archive_file
     local staging_dir
 
-    [[ "$tag" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]] ||
+    [[ "$tag" =~ ^v[0-9]+[.][0-9]+[.][0-9]+(-rc[.][0-9]+)?$ ]] ||
         fail "Invalid release tag."
 
     [[ ! -e "$INSTALL_DIR" ]] ||
