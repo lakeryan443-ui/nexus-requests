@@ -217,22 +217,6 @@ generate_setup_token() {
     chmod 0600 "$token_file"
 }
 
-
-generate_setup_token() {
-    local data_dir="$INSTALL_DIR/webgui/data"
-    local token_file="$data_dir/setup.token"
-
-    install -d -m 0700 "$data_dir"
-
-    [[ ! -e "$token_file" ]] ||
-        fail "Setup token already exists."
-
-    SETUP_TOKEN="$(/usr/bin/python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-
-    (umask 077; printf '%s\n' "$SETUP_TOKEN" > "$token_file")
-    chmod 0600 "$token_file"
-}
-
 main() {
     log "Preparing $APP_NAME installation"
 
@@ -249,7 +233,6 @@ main() {
     download_release "$tag"
     install_dependencies
     install_services
-    generate_setup_token
     generate_setup_token
 
     systemctl enable --now nexus-requests-webgui.service ||
