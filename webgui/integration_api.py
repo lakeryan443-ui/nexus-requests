@@ -67,7 +67,7 @@ async def integration_status(service: str, request: Request):
     saved = store.load_internal(service)
     status['display_values'] = {
         key: value for key, value in saved.items()
-        if key in ('url', 'username')
+        if key in ('url', 'username', 'enabled')
     }
     return JSONResponse(status, headers={'Cache-Control': 'no-store'})
 

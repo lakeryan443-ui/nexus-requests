@@ -458,7 +458,7 @@ document.getElementById("nexus-footer-year").textContent =
 })();
 </script>
 
-<script>function toggleLabel(input){const label=input.closest('.toggle').querySelector('.toggle-word');label.textContent=input.checked?'On':'Off';const notice=document.getElementById('scheduler-active-notice');if(notice)notice.hidden=!input.checked}</script>
+<script>function toggleLabel(input){const label=input.closest('.toggle').querySelector('.toggle-word');label.textContent=input.checked?'On':'Off';const notice=document.getElementById('scheduler-active-notice');if(notice && input.getAttribute('aria-label') === 'Enable scheduler')notice.hidden=!input.checked}</script>
 
 <script>
 (function () {
@@ -1110,9 +1110,19 @@ document.getElementById("global-save").addEventListener("click", async () => {
 
   try {
     const results = await Promise.all(
-      Object.entries(integrations).map(([service, fields]) =>
-        validateSavedIntegration(service, fields)
-      )
+      Object.entries(integrations).map(([service, fields]) => {
+        if (service === 'radarr' || service === 'sonarr') {
+          const name = service === 'radarr' ? 'Radarr' : 'Sonarr';
+          const toggle = document.querySelector(
+            'input[aria-label="Enable ' + name + '"]'
+          );
+          if (!toggle) {
+            throw new Error('Missing ' + name + ' toggle');
+          }
+          if (!toggle.checked) return true;
+        }
+        return validateSavedIntegration(service, fields);
+      })
     );
 
     if (results.some(result => !result)) {
@@ -1221,6 +1231,16 @@ function collectCoreSettings() {
       const value = document.getElementById(id)?.value.trim();
       if (value) settings[key] = value;
     }
+    if (service === 'radarr' || service === 'sonarr') {
+      const toggle = document.querySelector(
+        'input[aria-label="Enable ' +
+        (service === 'radarr' ? 'Radarr' : 'Sonarr') + '"]'
+      );
+      if (!toggle) {
+        throw new Error('Missing ' + service + ' toggle');
+      }
+      settings.enabled = toggle.checked ? 'true' : 'false';
+    }
     result[service] = settings;
   }
   return result;
@@ -1273,6 +1293,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await response.json();
       const values = data.display_values || {};
       const configured = data.configured_fields || [];
+
+      if (service === 'radarr' || service === 'sonarr') {
+        const name = service === 'radarr' ? 'Radarr' : 'Sonarr';
+        const toggle = document.querySelector(
+          'input[aria-label="Enable ' + name + '"]'
+        );
+        if (toggle) {
+          toggle.checked = values.enabled === 'true';
+          toggleLabel(toggle);
+        }
+      }
 
       for (const [key, id] of Object.entries(fields)) {
         const input = document.getElementById(id);

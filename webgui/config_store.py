@@ -12,8 +12,8 @@ from cryptography.fernet import Fernet
 SERVICES = {
     'seerr': ('url', 'api_key'),
     'qbittorrent': ('url', 'username', 'password'),
-    'radarr': ('url', 'api_key'),
-    'sonarr': ('url', 'api_key'),
+    'radarr': ('url', 'api_key', 'enabled'),
+    'sonarr': ('url', 'api_key', 'enabled'),
     'scheduler': ('enabled', 'start_time', 'end_time', 'timezone', 'advanced_enabled', 'advanced_days'),
     'discord': ('bot_token', 'guild_id', 'channel_id', 'owner_id'),
 }

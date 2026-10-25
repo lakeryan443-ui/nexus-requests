@@ -46,12 +46,22 @@ class RequestView(discord.ui.View):
             str(scheduler.get("enabled", "true")).lower() == "true"
         )
 
-        if not scheduler_enabled:
-            self.remove_item(self.priority)
-        else:
-            self.priority.disabled = not (
-                self.priority_enabled is True and media_type in ("movie", "tv")
+        service = {
+            "movie": "radarr",
+            "tv": "sonarr",
+        }.get(media_type)
+
+        eligible = False
+        if scheduler_enabled and self.priority_enabled is True and service:
+            integration = ConfigStore().load_internal(service)
+            eligible = (
+                integration.get("enabled") == "true"
+                and bool(integration.get("url", "").strip())
+                and bool(integration.get("api_key", "").strip())
             )
+
+        if not eligible:
+            self.remove_item(self.priority)
 
     async def change_request(self, interaction, action):
         if interaction.user.id not in ADMIN_IDS:
