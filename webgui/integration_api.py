@@ -270,6 +270,9 @@ async def integration_save(service: str, request: Request):
             raise ValueError()
         if service == 'scheduler':
             validate_scheduler(settings)
+        if service in ('radarr', 'sonarr') and 'enabled' in settings:
+            if settings['enabled'] not in ('true', 'false'):
+                raise ValueError('Invalid integration enabled setting')
         ConfigStore().save(service, settings)
     except (ValueError, UnicodeDecodeError):
         raise HTTPException(status_code=422, detail='Invalid configuration')

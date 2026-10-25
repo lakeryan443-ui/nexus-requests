@@ -25,11 +25,31 @@ seerr_config = load_seerr_config()
 SEERR_URL = seerr_config["url"]
 SEERR_KEY = seerr_config["api_key"]
 CHANNEL_ID = discord_config["channel_id"]
-ADMIN_IDS = {
-    int(value.strip())
-    for value in os.environ["ADMIN_DISCORD_IDS"].split(",")
-    if value.strip()
-}
+def load_admin_ids():
+    from webgui.config_store import ConfigStore
+
+    saved = ConfigStore().load_internal("discord")
+    owner_id = saved.get("owner_id", "").strip()
+
+    if owner_id:
+        if not owner_id.isascii() or not owner_id.isdecimal():
+            raise ValueError("Invalid Discord administrator ID")
+        return {int(owner_id)}
+
+    legacy = os.environ.get("ADMIN_DISCORD_IDS", "")
+    ids = {
+        int(value.strip())
+        for value in legacy.split(",")
+        if value.strip()
+    }
+
+    if not ids:
+        raise RuntimeError("No Discord administrator configured")
+
+    return ids
+
+
+ADMIN_IDS = load_admin_ids()
 
 
 class RequestView(discord.ui.View):
@@ -604,8 +624,18 @@ class NexusBot(discord.Client):
 
                     self.posted_ids.add(request_id)
 
-                    with open(self.posted_file, "w") as file:
-                        json.dump(sorted(self.posted_ids), file)
+                    state_path = Path(self.posted_file)
+                    state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    temporary_path = state_path.with_suffix(".tmp")
+
+                    try:
+                        with open(temporary_path, "w") as file:
+                            json.dump(sorted(self.posted_ids), file)
+                            file.flush()
+                            os.fsync(file.fileno())
+                        os.replace(temporary_path, state_path)
+                    finally:
+                        temporary_path.unlink(missing_ok=True)
 
                     logging.info(
                         "New pending request detected: #%s",

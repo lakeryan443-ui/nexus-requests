@@ -54,10 +54,10 @@ get_release_tag() {
         'import json,sys; print(json.load(sys.stdin).get("tag_name", ""))')" ||
         fail "Invalid GitHub release response."
 
-    [[ "$tag" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]] ||
+    [[ "$tag" =~ ^v[0-9]+[.][0-9]+[.][0-9]+$ ]] ||
         fail "No valid stable release tag was found."
 
-    printf '%s\\n' "$tag"
+    printf '%s\n' "$tag"
 }
 
 download_release() {

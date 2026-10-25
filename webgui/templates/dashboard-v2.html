@@ -1074,26 +1074,7 @@ document.getElementById('discord-test-connection')?.addEventListener('click', as
 </style>
 
 <script>
-function validateCoreIntegrations() {
-  const required = [
-    "seerr-url", "radarr-url", "sonarr-url",
-    "qbit-url", "qbit-user"
-  ];
-  let valid = true;
 
-  for (const id of required) {
-    const field = document.getElementById(id);
-    if (!field) {
-      valid = false;
-      continue;
-    }
-    const missing = !field.value.trim();
-    field.classList.toggle("nexus-field-error", missing);
-    field.setAttribute("aria-invalid", String(missing));
-    if (missing) valid = false;
-  }
-  return valid;
-}
 </script>
 
 <script>
