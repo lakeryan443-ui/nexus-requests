@@ -216,6 +216,38 @@ class RequestView(discord.ui.View):
 
                 media_type = request.get("type")
 
+                # Recheck current settings, including for cached Discord cards.
+                from webgui.config_store import ConfigStore
+
+                store = ConfigStore()
+                scheduler = store.load_internal("scheduler")
+                service = {
+                    "movie": "radarr",
+                    "tv": "sonarr",
+                }.get(media_type)
+
+                if (
+                    str(scheduler.get("enabled", "true")).lower() != "true"
+                    or service is None
+                ):
+                    await interaction.followup.send(
+                        "Priority downloading is currently unavailable.",
+                        ephemeral=True,
+                    )
+                    return
+
+                integration = store.load_internal(service)
+                if (
+                    integration.get("enabled") != "true"
+                    or not integration.get("url", "").strip()
+                    or not integration.get("api_key", "").strip()
+                ):
+                    await interaction.followup.send(
+                        "The required integration is disabled or incomplete.",
+                        ephemeral=True,
+                    )
+                    return
+
                 if media_type == "movie":
                     validate_movie_request(self.request_id, request)
                     await approve_movie_priority(
