@@ -99,8 +99,8 @@ def _run_test(service, config):
 async def test_connection(service: str, request: Request):
     _session_fingerprint(request)
     _check_csrf(request)
-    if service not in SERVICES:
-        raise HTTPException(status_code=404, detail='Unknown integration')
+    if service not in ('seerr', 'qbittorrent', 'radarr', 'sonarr'):
+        raise HTTPException(status_code=404, detail='Connection test unavailable')
     try:
         config = ConfigStore().load_internal(service)
         result = await asyncio.to_thread(_run_test, service, config)
