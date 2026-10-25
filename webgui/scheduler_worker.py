@@ -61,10 +61,8 @@ def in_window(settings, now=None):
         return day
 
     today = get_day(current.weekday())
-    if not today["enabled"]:
-        return True
 
-    if contains(today["start"], today["end"]):
+    if today["enabled"] and contains(today["start"], today["end"]):
         return True
 
     previous = get_day((current - timedelta(days=1)).weekday())
