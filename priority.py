@@ -1,4 +1,8 @@
-import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'webgui'))
+from config_store import ConfigStore
 
 import aiohttp
 
@@ -29,14 +33,15 @@ async def prioritize_torrent(
     if expected_category not in (None, "radarr", "sonarr"):
         raise PriorityError("Invalid expected category")
 
-    base = os.environ["QBT_URL"].rstrip("/")
+    config = ConfigStore().load_internal("qbittorrent")
+    base = config["url"].rstrip("/")
 
     async def execute(client):
         async with client.post(
             f"{base}/api/v2/auth/login",
             data={
-                "username": os.environ["QBT_USERNAME"],
-                "password": os.environ["QBT_PASSWORD"],
+                "username": config["username"],
+                "password": config["password"],
             },
         ) as response:
             response.raise_for_status()
@@ -113,8 +118,9 @@ async def prioritize_torrent(
     return True
 async def find_radarr_download(tmdb_id):
     """Find torrent hashes for a movie using its TMDB ID."""
-    base = os.environ["RADARR_URL"].rstrip("/")
-    headers = {"X-Api-Key": os.environ["RADARR_API_KEY"]}
+    config = ConfigStore().load_internal("radarr")
+    base = config["url"].rstrip("/")
+    headers = {"X-Api-Key": config["api_key"]}
     timeout = aiohttp.ClientTimeout(total=20)
 
     async with aiohttp.ClientSession(
@@ -150,8 +156,9 @@ async def find_radarr_download(tmdb_id):
 
 async def find_sonarr_download(tvdb_id):
     """Find torrent hashes associated with a Sonarr series."""
-    base = os.environ["SONARR_URL"].rstrip("/")
-    headers = {"X-Api-Key": os.environ["SONARR_API_KEY"]}
+    config = ConfigStore().load_internal("sonarr")
+    base = config["url"].rstrip("/")
+    headers = {"X-Api-Key": config["api_key"]}
     timeout = aiohttp.ClientTimeout(total=20)
 
     async with aiohttp.ClientSession(

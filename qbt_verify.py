@@ -1,9 +1,10 @@
-import os
+import sys
+from pathlib import Path
 
 import aiohttp
-from dotenv import load_dotenv
 
-load_dotenv("/opt/nexus-requests/.env")
+sys.path.insert(0, str(Path(__file__).resolve().parent / "webgui"))
+from config_store import ConfigStore
 
 
 class TorrentNotFoundError(RuntimeError):
@@ -25,7 +26,8 @@ async def verify_torrent(torrent_hash, expected_category=None):
     if any(c not in "0123456789abcdef" for c in torrent_hash):
         raise ValueError("Invalid torrent hash characters")
 
-    base = os.environ["QBT_URL"].rstrip("/")
+    config = ConfigStore().load_internal("qbittorrent")
+    base = config["url"].rstrip("/")
     cookie_jar = aiohttp.CookieJar(unsafe=True)
 
     async with aiohttp.ClientSession(
@@ -34,8 +36,8 @@ async def verify_torrent(torrent_hash, expected_category=None):
         async with session.post(
             f"{base}/api/v2/auth/login",
             data={
-                "username": os.environ["QBT_USERNAME"],
-                "password": os.environ["QBT_PASSWORD"],
+                "username": config["username"],
+                "password": config["password"],
             },
         ) as response:
             response.raise_for_status()
