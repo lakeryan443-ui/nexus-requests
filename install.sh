@@ -246,7 +246,7 @@ main() {
     printf '\n'
     log "INITIAL ADMINISTRATOR SETUP"
     log "----------------------------------------"
-    log "Setup Token: %s" "$SETUP_TOKEN"
+    log "Setup Token: $SETUP_TOKEN"
     log "Enter this token in the WebGUI setup form."
     log "To retrieve it later, run:"
     log "cat $INSTALL_DIR/webgui/data/setup.token"
