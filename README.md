@@ -1,242 +1,202 @@
 # Nexus Requests
 
-A lightweight Discord bot for managing Seerr media requests
-from anywhere, directly through interactive Discord cards.
+**Self-hosted media request approvals, download scheduling, and priority management.**
 
-## Overview
+Nexus Requests connects Seerr, Discord, Radarr, Sonarr, and qBittorrent through a centralized administration interface.
 
-Nexus Requests posts pending Seerr requests to a Discord
-approvals channel. Administrators can approve or decline
-requests from Discord. For movie requests, they can also
-approve and start the exact matching Radarr torrent.
+It gives administrators control over which requests are approved, when downloads are allowed to run, and which approved requests should download immediately.
 
-People submitting requests through Seerr or a connected
-Jellyfin interface do not need Discord accounts.
+## Features
 
-## Current features
+### Discord Request Approvals
 
-- Post pending Seerr requests with the title, poster, requester,
-  and request details
-- Approve or decline requests in Seerr from Discord
-- Restrict request actions to configured Discord administrators
-- Approve a movie request and start its verified Radarr torrent
-- Add the `nexus-priority` tag to the exact verified torrent
-- Record movie download progress and completion in the local
-  priority job store
-- Keep job history when a torrent is missing or needs review
+Manage incoming Seerr requests directly from Discord.
 
-The priority button is available for movie requests. TV requests
-can be approved or declined, but TV priority matching is not
-implemented. Recovery controls are disabled.
+- Receive administrator-only approval cards for pending requests.
+- Approve or decline movie and TV requests.
+- Use **Approve & Download Now** to prioritize an approved request when scheduling is enabled.
+- Restrict approval actions to configured Discord administrators.
+- Keep request approvals separate from ordinary Discord conversations.
 
-Download progress is recorded in the local job store and service
-logs; the Discord card does not show live progress updates. A
-completed job means qBittorrent reports that the download
-finished. It does not confirm that Radarr imported the media or
-that Jellyfin can play it.
+### Download Scheduler
 
-## Discord request card
+Control when qBittorrent is permitted to download.
 
-Each pending request has these buttons:
+- Configure scheduled download windows.
+- Automatically start and stop downloads according to the schedule.
+- Manage scheduled downloading independently of Seerr approvals.
+- Allow priority downloads to override normal scheduling restrictions.
+- Preserve ordinary approval behavior without automatically forcing an immediate download.
 
-- **Approve** — approve the request in Seerr.
-- **Approve & Download Now** — for movie requests, approve in
-  Seerr, verify the exact Radarr-linked torrent in qBittorrent,
-  tag it, and start it.
-- **Decline** — decline the request in Seerr.
+**Approval behavior**
 
-The priority workflow requires confirmed Seerr approval and a
-unique movie-to-torrent match. Ambiguous matches are not started.
-If a started torrent later disappears from qBittorrent, the job
-is marked failed for manual review and retained in local history.
+| Scheduler | Available actions |
+|---|---|
+| Disabled | Approve, Decline |
+| Enabled | Approve, Approve & Download Now, Decline |
+
+The scheduler controls download timing, while Radarr and Sonarr remain responsible for selecting releases.
+
+### Priority Downloads
+
+When an administrator chooses **Approve & Download Now**, Nexus Requests coordinates with the relevant media manager and qBittorrent to prioritize the approved request.
+
+The priority workflow is designed to work with the releases selected by Radarr and Sonarr rather than replacing their release-selection logic.
+
+### Web Administration
+
+Configure Nexus Requests through its browser-based WebGUI.
+
+- Create the initial administrator account.
+- Configure supported service integrations.
+- Store integration credentials securely.
+- Test connections to configured services.
+- Manage application settings through an authenticated interface.
+
+### Supported Integrations
+
+| Service | Purpose |
+|---|---|
+| Seerr | Receives and manages media requests |
+| Discord | Administrator approval interface |
+| Radarr | Movie download management |
+| Sonarr | TV series download management |
+| qBittorrent | Download scheduling and priority control |
+| Jellyfin | Media-library destination; availability notifications are planned |
+
+Nexus Requests does not replace Seerr, Radarr, Sonarr, or qBittorrent. It coordinates their existing functionality.
+
+## How It Works
+
+1. A user submits a movie or TV request through Seerr.
+2. Nexus Requests presents the pending request to authorized Discord administrators.
+3. An administrator approves, declines, or prioritizes the request.
+4. Radarr or Sonarr handles the approved media request.
+5. qBittorrent downloads according to the configured schedule or priority override.
+6. The existing media-management workflow imports the completed download.
 
 ## Requirements
 
-- Linux host with systemd
-- Python 3.13 or newer
-- Discord bot application and token
-- Seerr API access
-- Radarr API access
-- qBittorrent Web UI access
+- Linux system with systemd for native installation.
+- Internet access during installation.
+- Access to the services being integrated.
+- A Discord application and bot token for Discord approval functionality.
 
-The current application reads its environment file and stores
-runtime state under `/opt/nexus-requests`. Install at that path
-unless the source paths are updated consistently.
-
-## Configuration
-
-Create `/opt/nexus-requests/.env` with these values:
-
-```dotenv
-DISCORD_TOKEN=
-ADMIN_DISCORD_IDS=
-APPROVALS_CHANNEL_ID=
-
-SEERR_URL=
-SEERR_API_KEY=
-
-RADARR_URL=
-RADARR_API_KEY=
-
-QBT_URL=
-QBT_USERNAME=
-QBT_PASSWORD=
-```
-
-Use base service URLs, such as `http://host:port`; do not append
-`/api/v1`. `ADMIN_DISCORD_IDS` accepts numeric Discord user IDs
-separated by commas. The bot uses the approvals channel ID and
-does not currently require a Discord server ID.
-
-Movie priority uses Radarr and qBittorrent credentials. Sonarr
-configuration is not required for the current movie-only
-priority workflow.
-
-Protect the environment file:
-
-```bash
-chmod 600 /opt/nexus-requests/.env
-```
-
-Never commit `.env`, API keys, bot tokens, passwords, or runtime
-state to Git.
+The native installer provisions the application's Python environment and systemd services.
 
 ## Installation
 
-Clone or copy the repository into `/opt/nexus-requests`, then
-install the Python dependencies and create the runtime directory:
+### Automated Installation
+
+Run the installation commands as root.
+
+**If curl is already installed:**
 
 ```bash
-cd /opt/nexus-requests
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-install -d -m 700 istate
+curl -fsSL https://raw.githubusercontent.com/lakeryan443-ui/nexus-requests/main/install.sh | bash
 ```
 
-Create and fill in `/opt/nexus-requests/.env` before starting
-the bot. The application loads this fixed path.
-
-## Run as a systemd service
-
-Create `/etc/systemd/system/nexus-requests.service`:
-
-```ini
-[Unit]
-Description=Nexus Requests Discord Bot
-Wants=network-online.target
-After=network-online.target
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/nexus-requests
-ExecStart=/opt/nexus-requests/venv/bin/python /opt/nexus-requests/bot.py
-Environment=PYTHONUNBUFFERED=1
-Restart=on-failure
-RestartSec=10
-KillSignal=SIGINT
-TimeoutStopSec=30
-UMask=0077
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Set the timezone through the host or add an appropriate systemd
-`Environment=TZ=Area/Location` value. The unit above has no
-`User=` setting and therefore runs as root, matching the current
-owner installation. For another host, configure a dedicated
-service account and grant it access to the application,
-environment file, and `istate` directory before enabling the
-service.
-
-Verify and start the service:
+**If curl is not installed (Debian/Ubuntu):**
 
 ```bash
-systemd-analyze verify /etc/systemd/system/nexus-requests.service
-systemctl daemon-reload
-systemctl enable --now nexus-requests.service
-systemctl status nexus-requests.service --no-pager --full
-journalctl -u nexus-requests.service -n 50 --no-pager
+apt update
+apt install -y curl ca-certificates
+curl -fsSL https://raw.githubusercontent.com/lakeryan443-ui/nexus-requests/main/install.sh | bash
 ```
 
-After changing application code, run syntax checks and relevant
-tests before restarting:
+The default installation command requires a published stable GitHub Release.
+
+### Release Candidate Installation
+
+For the current release candidate, use the matching version tag:
 
 ```bash
-cd /opt/nexus-requests
-python -m py_compile bot.py movie_priority.py priority.py priority_worker.py qbt_verify.py
-systemctl restart nexus-requests.service
+curl -fsSL https://raw.githubusercontent.com/lakeryan443-ui/nexus-requests/v0.1.0-rc.4/install.sh | NEXUS_VERSION=v0.1.0-rc.4 bash
 ```
 
-Follow service logs with:
+Release candidates are intended for testing and may change before the stable release.
+
+## First-Time Administrator Setup
+
+After installation, the installer displays a one-time administrator setup token.
+
+1. Open `http://SERVER-IP:8081` in a browser.
+2. Navigate to the initial administrator setup page.
+3. Enter the setup token.
+4. Create the administrator account.
+5. Sign in to the WebGUI.
+
+The setup token is also stored locally at:
+
+```text
+/opt/nexus-requests/webgui/data/setup.token
+```
+
+If you need to retrieve it, run the following command on the server:
 
 ```bash
-journalctl -u nexus-requests.service -f
+cat /opt/nexus-requests/webgui/data/setup.token
 ```
 
-## State and backups
+The token is sensitive and should not be shared. It is intended only for initial administrator creation and is invalidated after successful setup.
 
-Runtime state is stored in `/opt/nexus-requests/istate/`.
-It includes posted request IDs and priority job history. Git
-ignores this directory.
+## Configure Integrations
 
-Back up the environment file, runtime state, and installed
-systemd unit together. Stop the service while creating the
-archive so the JSON state is not being updated:
+Use the WebGUI to configure your service connections.
+
+For each applicable integration, provide the service URL and the required credentials, then use **Test Connection** to verify communication.
+
+Ensure that Nexus Requests can reach the configured service addresses over the network.
+
+## Managing Services
+
+The native installation uses separate systemd services for the WebGUI, Discord bot, and scheduler.
+
+**Check service status:**
 
 ```bash
-install -d -m 700 /root/nexus-backups
-backup_file="/root/nexus-backups/nexus-requests-$(date +%F-%H%M%S).tar.gz"
-systemctl stop nexus-requests.service
-tar -czf "$backup_file" \
-  /opt/nexus-requests/.env \
-  /opt/nexus-requests/istate \
-  /etc/systemd/system/nexus-requests.service
-backup_status=$?
-systemctl start nexus-requests.service
-if [ "$backup_status" -ne 0 ]; then
-  exit "$backup_status"
-fi
-chmod 600 "$backup_file"
+systemctl status nexus-requests-webgui --no-pager
+systemctl status nexus-requests-bot --no-pager
+systemctl status nexus-requests-scheduler --no-pager
 ```
 
-Keep backups outside the Git repository and protect them as
-carefully as the `.env` file. Keep an encrypted copy off the host
-to protect against host or disk failure.
-
-To restore, stop the service, extract the selected archive as
-root from `/`, restore `.env` permissions, reload systemd, and
-start the service:
+**View recent logs:**
 
 ```bash
-systemctl stop nexus-requests.service
-tar -xzf /root/nexus-backups/SELECTED-BACKUP.tar.gz -C /
-chmod 600 /opt/nexus-requests/.env
-systemctl daemon-reload
-systemctl start nexus-requests.service
-systemctl status nexus-requests.service --no-pager --full
+journalctl -u nexus-requests-webgui -n 50 --no-pager
+journalctl -u nexus-requests-bot -n 50 --no-pager
+journalctl -u nexus-requests-scheduler -n 50 --no-pager
 ```
 
-Replace `SELECTED-BACKUP.tar.gz` with the actual backup filename.
-Application source code is managed in Git; runtime state and
-credentials are not.
+The Discord bot remains inactive until its required configuration is available.
 
 ## Security
 
-- Keep `.env` readable only by the service account.
-- Do not paste credentials into Discord, GitHub issues, logs,
-  or the repository.
-- Keep `istate/` and backup archives out of Git.
-- Only configured Discord administrators can manage requests.
-- Review repository changes and tests before restarting the
-  production service.
+Nexus Requests is intended to be administered by trusted users.
 
-## Project status
+- The WebGUI requires administrator authentication after initial setup.
+- Initial remote administrator creation requires a one-time setup token.
+- Integration secrets are stored using encrypted local storage.
+- Sensitive configuration files are protected by filesystem permissions.
+- Discord approval actions are restricted to authorized administrators.
+- Setup and authentication endpoints include security protections.
 
-Movie request approval and priority downloading are implemented
-and running as a systemd service in the owner installation.
-TV priority matching, recovery actions, an optional distributed
-qBittorrent scheduler, and a self-hosted setup wizard are planned
-as later work orders.
+For remote access, use an appropriately secured reverse proxy with HTTPS. Do not expose sensitive application data or credentials publicly.
+
+## Troubleshooting
+
+**WebGUI is inaccessible:** Check the WebGUI service status, application logs, network connectivity, and firewall settings.
+
+**Discord bot is inactive:** Confirm that Discord configuration has been completed and inspect the bot service logs.
+
+**Integration connection test fails:** Verify the service URL, credentials, network accessibility, and the target service's availability.
+
+**Scheduler is not operating as expected:** Check the configured download windows, scheduler service status, and qBittorrent connection.
+
+## Project Status
+
+**Current testing release:** `v0.1.0-rc.4`
+
+The native installer has completed a successful fresh Debian 13 installation. Full end-to-end validation of the administrator setup, integrations, Discord approval workflow, and scheduler remains part of release testing.
+
+Docker deployment is being considered for a future release.
