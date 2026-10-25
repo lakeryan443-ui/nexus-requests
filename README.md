@@ -1,5 +1,7 @@
 # Nexus Requests
 
+This app was vibe coded with ChatGPT.
+
 **Self-hosted media request approvals, download scheduling, and priority management.**
 
 Nexus Requests connects Seerr, Discord, Radarr, Sonarr, and qBittorrent through a centralized administration interface.
@@ -111,7 +113,7 @@ The default installation command requires a published stable GitHub Release.
 For the current release candidate, use the matching version tag:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lakeryan443-ui/nexus-requests/v0.1.0-rc.4/install.sh | NEXUS_VERSION=v0.1.0-rc.4 bash
+curl -fsSL https://raw.githubusercontent.com/lakeryan443-ui/nexus-requests/v0.1.0-rc.5/install.sh | NEXUS_VERSION=v0.1.0-rc.5 bash
 ```
 
 Release candidates are intended for testing and may change before the stable release.
@@ -195,8 +197,8 @@ For remote access, use an appropriately secured reverse proxy with HTTPS. Do not
 
 ## Project Status
 
-**Current testing release:** `v0.1.0-rc.4`
+**Current testing release:** `v0.1.0-rc.5`
 
-The native installer has completed a successful fresh Debian 13 installation. Full end-to-end validation of the administrator setup, integrations, Discord approval workflow, and scheduler remains part of release testing.
+The RC5 installer has completed a successful fresh installation, and an initial request approval has been confirmed working. Broader end-to-end validation remains ongoing.
 
 Docker deployment is being considered for a future release.
