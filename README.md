@@ -8,6 +8,8 @@ Nexus Requests connects Seerr, Discord, Radarr, Sonarr, and qBittorrent through 
 
 It gives administrators control over which requests are approved, when downloads are allowed to run, and which approved requests should download immediately.
 
+![Nexus Requests WebGUI Preview](preview.png)
+
 ## Features
 
 ### Discord Request Approvals
